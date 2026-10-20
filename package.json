@@ -1,0 +1,22 @@
+{
+  "name": "digla-rpg",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Primeiro mundo de Digla RPG. Protótipo inteiramente local.",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "test": "node --test tests/server.test.mjs tests/fishing.test.mjs tests/cooking.test.mjs tests/world.test.mjs tests/weapons.test.mjs tests/temple.test.mjs tests/mobs.test.mjs tests/equipment.test.mjs tests/town.test.mjs tests/regions.test.mjs tests/ground-cleanup.test.mjs tests/elevation.test.mjs tests/community.test.mjs tests/consumables.test.mjs tests/lightning.test.mjs",
+    "test:browser": "playwright test",
+    "format": "prettier --write public server server.mjs tests *.mjs *.json *.md docs",
+    "format:check": "prettier --check public server server.mjs tests *.mjs *.json *.md docs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "prettier": "^3.9.10"
+  }
+}

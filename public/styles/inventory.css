@@ -1,0 +1,168 @@
+/* Vida/mana, slots vazios de equipamento e mochila de 12 espaços. */
+.vital-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  color: #bbc5ae;
+  font:
+    8px/1.4 system-ui,
+    sans-serif;
+  letter-spacing: 1px;
+}
+.vital-heading span:last-child {
+  color: #9ca98f;
+  font-size: 9px;
+  letter-spacing: 0;
+}
+.vital-bar {
+  height: 9px;
+  border: 1px solid #080e0a;
+  background: #0b120e;
+  box-shadow: 0 0 0 1px #525b3e66;
+  overflow: hidden;
+}
+.vital-bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  box-shadow: inset 0 1px 0 #ffffff30;
+}
+.health-bar {
+  margin-bottom: 12px;
+}
+.health-bar span {
+  background: linear-gradient(#cd5550, #9e302e);
+}
+.mana-bar span {
+  background: linear-gradient(#538fda, #315fbd);
+}
+.panel-ornament {
+  color: #99885a;
+}
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 12px;
+}
+.equipment-slot,
+.inventory-slot {
+  position: relative;
+  min-width: 0;
+  height: 42px;
+  border: 1px solid #424b37;
+  border-radius: 2px;
+  background: linear-gradient(145deg, #0e1611, #1a2319);
+  box-shadow:
+    inset 1px 1px 0 #060b0788,
+    inset -1px -1px 0 #6874531c;
+}
+.equipment-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 3px 0;
+}
+.equipment-slot[data-equipment='boots'] {
+  grid-column: 2;
+}
+.slot-placeholder {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: #7c8966;
+  stroke-width: 1.3;
+  opacity: 0.27;
+}
+.slot-name {
+  color: #728367;
+  font:
+    7px/1 system-ui,
+    sans-serif;
+}
+.backpack-icon {
+  width: 29px;
+  height: 29px;
+  flex-shrink: 0;
+}
+#backpack-slot {
+  gap: 0;
+  padding: 1px 0 3px;
+  border-color: #776540;
+  cursor: context-menu;
+}
+#backpack-slot .slot-name {
+  color: #c0aa78;
+}
+#backpack-slot:hover,
+#backpack-slot.is-open {
+  background: #a3863920;
+  border-color: #c4a466;
+}
+.backpack-hint {
+  margin: 10px 0 0;
+  color: #869578;
+  font:
+    8px/1.5 system-ui,
+    sans-serif;
+  text-align: center;
+}
+.backpack-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.backpack-heading h2 {
+  margin: 0;
+  color: #d2c297;
+  font:
+    12px/1.4 Georgia,
+    serif;
+  letter-spacing: 0;
+}
+.backpack-heading h2 span {
+  display: block;
+  margin-top: 2px;
+  color: #889a78;
+  font:
+    8px/1.4 system-ui,
+    sans-serif;
+}
+#close-backpack {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  background: #0f1811;
+  border: 1px solid #49563a;
+  border-radius: 2px;
+  color: #b5bf9f;
+  font:
+    16px/1 system-ui,
+    sans-serif;
+}
+#close-backpack:hover {
+  border-color: #ba9f67;
+  color: #e3d3a5;
+}
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 11px;
+}
+.inventory-slot {
+  height: 40px;
+}
+.inventory-slot:after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid #7782580c;
+  pointer-events: none;
+}

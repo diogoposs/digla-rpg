@@ -1,0 +1,27 @@
+import { defineConfig } from '@playwright/test';
+export default defineConfig({
+  testDir: './tests',
+  testMatch: [
+    'browser.spec.mjs',
+    'inventory.spec.mjs',
+    'fishing.spec.mjs',
+    'cooking.spec.mjs',
+    'world.spec.mjs',
+    'weapons.spec.mjs',
+    'temple.spec.mjs',
+    'mobs.spec.mjs',
+    'town.spec.mjs',
+    'equipment.spec.mjs',
+    'regions.spec.mjs',
+    'elevation.spec.mjs',
+    'community.spec.mjs',
+    'inspection.spec.mjs',
+    'vitality.spec.mjs',
+    'lightning.spec.mjs',
+  ],
+  workers: 1,
+  globalSetup: './tests/browser-setup.mjs',
+  timeout: 30000,
+  outputDir: './test-results/browser',
+  use: { baseURL: 'http://127.0.0.1:3001', viewport: { width: 1440, height: 960 }, headless: true },
+});

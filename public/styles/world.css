@@ -1,0 +1,518 @@
+.orc-label {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -100%);
+  padding: 2px 5px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  border: 1px solid transparent;
+  background: transparent;
+  font:
+    bold 12px/16px Verdana,
+    sans-serif;
+  color: #f0c794;
+  white-space: nowrap;
+  text-shadow:
+    -1px -1px #111,
+    1px 1px #111,
+    -1px 1px #111,
+    1px -1px #111;
+}
+.orc-label small {
+  font:
+    9px/13px Verdana,
+    sans-serif;
+  color: #e4d9b5;
+}
+.orc-label[data-kind='fire'] {
+  color: #ffbd66;
+}
+.orc-label[data-kind='water'] {
+  color: #8bdef5;
+}
+.mob-weakness {
+  color: #c0d0bc;
+  font:
+    8px/13px Verdana,
+    sans-serif;
+}
+.orc-label:hover,
+.orc-label.targeted {
+  border-color: #bc685277;
+  background: #172019bb;
+}
+.orc-health {
+  display: block;
+  width: 55px;
+  height: 5px;
+  background: #201713;
+  border: 1px solid #171b13;
+  box-shadow: 0 0 0 1px #0008;
+}
+.orc-health > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: #c34b3b;
+}
+.inventory-slot[draggable='true'] {
+  cursor: grab;
+}
+.inventory-slot[draggable='true']:active {
+  cursor: grabbing;
+}
+.inventory-slot[draggable='true']:hover {
+  border-color: #c0a468;
+}
+.damage-layer,
+.ground-item-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ground-item-layer {
+  z-index: 1;
+}
+.damage-layer {
+  z-index: 4;
+  overflow: hidden;
+}
+.ground-item-handle {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: grab;
+}
+.ground-item-handle:active {
+  cursor: grabbing;
+}
+.damage-number {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  color: #ff4848;
+  font:
+    bold 21px/1 Verdana,
+    sans-serif;
+  text-shadow:
+    -1px -1px #310909,
+    1px 1px #310909,
+    -1px 1px #310909,
+    1px -1px #310909;
+  white-space: nowrap;
+}
+.damage-number.critical {
+  color: #ff3535;
+  -webkit-text-stroke: 1px #ffdb58;
+  paint-order: stroke fill;
+  text-shadow:
+    0 0 4px #ffdb58,
+    0 0 9px #eaa32b;
+}
+.loot-panel {
+  position: absolute;
+  z-index: 5;
+  right: 22px;
+  bottom: 65px;
+  width: 210px;
+  padding: 12px;
+  background: #152018f5;
+  border: 1px solid #7b6c44;
+  box-shadow: 0 5px 22px #0008;
+}
+.loot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 12px;
+}
+.equipment-slot[draggable='true'] {
+  cursor: grab;
+  border-color: #a68b57;
+}
+.equipment-slot > .salmon-icon {
+  width: 28px;
+  height: 28px;
+}
+.staff-panel {
+  position: absolute;
+  z-index: 6;
+  top: 100px;
+  right: 22px;
+  width: 230px;
+  padding: 14px;
+  background: #152018f5;
+  border: 1px solid #8c794d;
+  box-shadow: 0 5px 22px #0008;
+}
+.staff-panel p {
+  color: #a7b199;
+  font:
+    10px/1.5 Verdana,
+    sans-serif;
+}
+.element-buttons {
+  display: flex;
+  gap: 5px;
+  margin: 14px 0;
+}
+.element-buttons button,
+#staff-equip {
+  padding: 8px;
+  border: 1px solid #536145;
+  background: #0f1811;
+  font:
+    11px/1.4 Verdana,
+    sans-serif;
+}
+.element-buttons button {
+  flex: 1;
+  color: var(--element);
+}
+.element-buttons button[aria-pressed='true'] {
+  border-color: var(--element);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--element) 30%, transparent);
+}
+#staff-equip {
+  width: 100%;
+  color: #d1bb85;
+}
+.element-fire {
+  --element: #ff502b;
+}
+.element-water {
+  --element: #4cafff;
+}
+.element-lightning {
+  --element: #ffe45d;
+}
+.damage-number.element-fire,
+.damage-number.element-water,
+.damage-number.element-lightning {
+  color: var(--element);
+}
+.effect-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+.element-hit {
+  position: absolute;
+  width: 56px;
+  height: 64px;
+  color: var(--element);
+  filter: drop-shadow(0 0 6px var(--element));
+}
+.element-hit svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+.element-hit.element-fire svg {
+  animation: flame-flicker 140ms steps(2) infinite;
+}
+.element-hit.element-water svg {
+  animation: water-splash 450ms ease-out infinite;
+}
+.spell-projectile {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--element);
+  box-shadow: 0 0 10px 4px var(--element);
+}
+.spell-projectile.element-lightning {
+  width: 20px;
+  height: 5px;
+  border-radius: 0;
+  transform: translate(-50%, -50%) rotate(-35deg);
+}
+@keyframes flame-flicker {
+  to {
+    transform: scaleX(0.8) translateY(-4px);
+  }
+}
+@keyframes water-splash {
+  from {
+    transform: scale(0.55);
+  }
+  to {
+    transform: scale(1.2);
+  }
+}
+.look-message {
+  position: absolute;
+  bottom: 105px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(90%, 620px);
+  margin: 0;
+  text-align: center;
+  pointer-events: none;
+  z-index: 12;
+  color: #50f050;
+  font:
+    bold 12px/1.6 Verdana,
+    sans-serif;
+  text-shadow:
+    -1px -1px #102010,
+    1px 1px #102010,
+    0 2px #102010;
+}
+.item-context-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid #8b9275;
+  background: #1b281f;
+  box-shadow: 3px 4px 12px #0009;
+}
+.item-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: #dbdfc4;
+  font:
+    12px Verdana,
+    sans-serif;
+}
+.item-context-menu button:hover,
+.item-context-menu button:focus-visible {
+  background: #3a5136;
+  outline: 1px solid #a6b17d;
+}
+
+.lightning-abilities {
+  position: absolute;
+  bottom: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  display: flex;
+  gap: 7px;
+  max-width: 95%;
+  padding: 6px;
+  border: 1px solid #685735;
+  border-radius: 8px;
+  background: linear-gradient(#212b35ed, #101820f5);
+  box-shadow:
+    0 4px 16px #0009,
+    inset 0 1px #c0b08333;
+}
+.lightning-abilities button {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  padding: 2px;
+  border: 1px solid #9b8552;
+  border-radius: 5px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 70%, #24485e, #0b1523);
+  color: #fff1b2;
+  box-shadow: inset 0 0 0 2px #ffffff0b;
+  cursor: pointer;
+}
+.lightning-abilities button[data-ability='w'] {
+  background: radial-gradient(ellipse at 50% 70%, #504375, #161728);
+}
+.lightning-abilities button:hover:enabled,
+.lightning-abilities button:focus-visible {
+  border-color: #fff0aa;
+  box-shadow: 0 0 12px #74d8fa88;
+  outline: 1px solid #f9e3a3;
+  outline-offset: 2px;
+}
+.ability-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 3px #83dfff66);
+  pointer-events: none;
+}
+.lightning-abilities kbd {
+  position: absolute;
+  left: 4px;
+  top: 3px;
+  font:
+    bold 11px Verdana,
+    sans-serif;
+  color: #fff8d1;
+  text-shadow:
+    0 1px 3px #000,
+    1px 0 #000;
+  pointer-events: none;
+}
+.lightning-abilities b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font:
+    bold 16px Verdana,
+    sans-serif;
+  color: #fff8d1;
+  text-shadow: 0 1px 3px #000;
+  pointer-events: none;
+}
+.lightning-abilities b:not(:empty) {
+  background: #071019a8;
+}
+.lightning-abilities button:disabled {
+  cursor: default;
+  border-color: #53586a;
+}
+.lightning-abilities button:disabled .ability-icon {
+  filter: saturate(0.4) brightness(0.65);
+}
+.world-frame:has(#lightning-abilities:not([hidden])) .look-message {
+  bottom: 180px;
+}
+.lightning-area-effect {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  color: #fff2a2;
+  background: radial-gradient(ellipse, #a4e9ff44, transparent 68%);
+}
+.lightning-area-effect svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 4px #72dfff);
+}
+.storm-rune {
+  fill: #61c6ed0f;
+  stroke: #78d6f4;
+  stroke-width: 0.7;
+  stroke-dasharray: 6 2;
+  animation: rune-flash 1100ms ease-out both;
+  transform-origin: center;
+}
+.storm-strike {
+  color: #fff6b3;
+  animation: arc-flash 180ms steps(2) 4 both;
+}
+.storm-arcs {
+  fill: none;
+  stroke: #ffeda1;
+  stroke-width: 1.4;
+  animation: arc-flash 120ms steps(2) 7;
+  transform-origin: center;
+}
+.shock-rings {
+  stroke-width: 1.5;
+  transform-origin: center;
+  animation: shock-expand 1000ms cubic-bezier(0.1, 0.6, 0.2, 1) both;
+}
+.lightning-area-effect[data-ability='r'] {
+  background: radial-gradient(ellipse, #efffcf55, #75ceff22, transparent 70%);
+}
+.element-hit.element-lightning {
+  filter: drop-shadow(0 0 4px #90dfff) drop-shadow(0 0 8px #ffe56d);
+}
+.element-hit[data-ability='q'] {
+  width: 72px;
+  height: 88px;
+}
+.element-hit[data-ability='w'] {
+  color: #d6b0ff;
+  filter: drop-shadow(0 0 6px #9874ed);
+}
+.impact-ring {
+  transform-origin: 25px 28px;
+  animation: impact-bloom 650ms ease-out both;
+}
+.impact-bolt {
+  animation: arc-flash 110ms steps(2) 6;
+}
+.impact-sparks {
+  transform-origin: center;
+  animation: sparks-scatter 650ms ease-out both;
+}
+.spell-projectile.element-lightning {
+  height: 15px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  transform-origin: left center;
+  filter: drop-shadow(0 0 4px #73d7ff);
+}
+.spell-projectile.element-lightning svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: #fff7ba;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 2px #ffe169);
+}
+@keyframes arc-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+@keyframes impact-bloom {
+  from {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+@keyframes sparks-scatter {
+  from {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.7) rotate(15deg);
+    opacity: 0;
+  }
+}
+@keyframes shock-expand {
+  from {
+    transform: scale(0.1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+@keyframes rune-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .storm-strike,
+  .storm-arcs,
+  .impact-bolt {
+    animation: none;
+  }
+}

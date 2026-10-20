@@ -1,0 +1,240 @@
+@media (min-width: 1600px) {
+  .menu-screen {
+    grid-template-columns: minmax(0, 1fr) 500px;
+  }
+  .entry-panel {
+    padding-left: 62px;
+    padding-right: 62px;
+  }
+  .intro-copy {
+    left: 10%;
+  }
+}
+@media (max-width: 1050px) {
+  .menu-screen {
+    grid-template-columns: minmax(0, 1fr) 400px;
+  }
+  .entry-panel {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+  h1 {
+    font-size: 43px;
+  }
+  .intro-copy {
+    left: 8%;
+  }
+  .world-intro > .wordmark {
+    left: 30px;
+  }
+  .landscape-label {
+    left: 30px;
+  }
+  .intro-coordinate {
+    display: none;
+  }
+  .game-screen {
+    padding: 0 18px;
+  }
+  .game-layout {
+    grid-template-columns: minmax(0, 1fr) 210px;
+    gap: 15px;
+  }
+  .game-location > span:last-child {
+    display: none;
+  }
+  .game-footer > span:nth-child(2) {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .menu-screen {
+    grid-template-columns: 1fr;
+  }
+  .world-intro {
+    min-height: 360px;
+  }
+  .world-intro > .wordmark {
+    top: 24px;
+    left: 25px;
+    font-size: 19px;
+  }
+  .intro-copy {
+    top: 48%;
+    left: 26px;
+    transform: translateY(-25%);
+  }
+  h1 {
+    font-size: 34px;
+    letter-spacing: -0.7px;
+    margin: 15px 0;
+  }
+  .intro-copy > .eyebrow {
+    font-size: 8px;
+  }
+  .intro-copy > p:not(.eyebrow) {
+    font-size: 11px;
+  }
+  .intro-rule,
+  .intro-coordinate {
+    display: none;
+  }
+  .landscape-label {
+    left: 27px;
+    bottom: 20px;
+    font-size: 8px;
+  }
+  .entry-panel {
+    padding: 24px 30px;
+    min-height: 620px;
+    border-left: 0;
+    border-top: 1px solid #61714466;
+  }
+  .auth-view {
+    padding: 32px 0;
+    max-width: 420px;
+    width: 100%;
+    margin: auto;
+  }
+  .small-emblem {
+    display: none;
+  }
+  .auth-view h2 {
+    font-size: 30px;
+  }
+  .subheading {
+    margin-bottom: 22px;
+  }
+  .panel-top,
+  .panel-footer {
+    max-width: 420px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .outfit-view {
+    max-width: 420px;
+    width: 100%;
+    margin: auto;
+  }
+  .game-screen {
+    padding: 0 10px;
+  }
+  .game-header {
+    height: 70px;
+    gap: 10px;
+  }
+  .game-header .wordmark {
+    font-size: 17px;
+    letter-spacing: 2px;
+    gap: 7px;
+  }
+  .game-header .brand-mark {
+    width: 26px;
+    height: 31px;
+    font-size: 23px;
+  }
+  .game-header .wordmark small {
+    font-size: 7px;
+    margin-left: 0;
+    letter-spacing: 1px;
+  }
+  .game-location {
+    display: none;
+  }
+  .secondary-button {
+    padding: 9px 10px;
+    font-size: 9px;
+  }
+  .secondary-button span {
+    margin-left: 8px;
+  }
+  .game-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: unset;
+  }
+  .world-frame {
+    height: 65svh;
+    min-height: 400px;
+  }
+  .game-sidebar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .minimap-card {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .game-sidebar {
+    align-items: start;
+  }
+  .vitals-card {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .equipment-card {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .skills-card {
+    grid-column: 1 / -1;
+  }
+  .backpack-card {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .equipment-grid {
+    gap: 4px;
+  }
+  .slot-name {
+    font-size: 6px;
+  }
+  .inventory-grid {
+    gap: 4px;
+  }
+  .inventory-slot {
+    height: 33px;
+  }
+  .backpack-hint {
+    font-size: 7px;
+  }
+  .vitals-card {
+    min-height: 115px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .save-status {
+    grid-column: 1 / -1;
+    padding: 0 5px;
+  }
+  .game-footer {
+    font-size: 6px;
+    min-height: 40px;
+  }
+  .world-topline {
+    left: 15px;
+    right: 15px;
+  }
+  .world-bottomline {
+    left: 15px;
+    letter-spacing: 1px;
+  }
+  .welcome-toast {
+    padding: 12px 14px;
+  }
+  .welcome-toast > div {
+    font-size: 12px;
+  }
+  .welcome-toast small {
+    font-size: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,190 @@
+/* Skills e o minijogo de pesca. Regras numéricas: js/game/fishing-rules.js. */
+.skills-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid #5e6546;
+  border-radius: 2px;
+  background: #a89b5620;
+  padding: 8px 9px;
+  color: #c9c5a0;
+  font:
+    10px system-ui,
+    sans-serif;
+}
+.skills-button:hover,
+.skills-button[aria-expanded='true'] {
+  border-color: #b59b64;
+  background: #b09b6326;
+}
+.skills-card {
+  padding: 12px;
+  border: 1px solid #576145;
+  background: #1b251c;
+}
+.close-panel {
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border: 1px solid #49563a;
+  border-radius: 2px;
+  background: #0f1811;
+  color: #b5bf9f;
+  font:
+    16px/1 system-ui,
+    sans-serif;
+}
+.skill-row {
+  margin-top: 17px;
+  font:
+    9px/1.5 system-ui,
+    sans-serif;
+  color: #9cae8d;
+}
+.skill-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.skill-row strong {
+  color: #ddd0aa;
+  font-weight: 500;
+  font-size: 11px;
+}
+.skill-row b {
+  color: #ded5b3;
+  font-weight: 500;
+}
+.skill-row > span {
+  display: block;
+  margin-top: 4px;
+  color: #9ba48b;
+  font-size: 8px;
+}
+.skill-progress {
+  height: 5px;
+  border: 1px solid #424d36;
+  background: #0f1811;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.skill-progress > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #80a26b;
+}
+.magic-progress > span {
+  background: #678dbd;
+}
+.salmon-icon {
+  display: block;
+  width: 34px;
+  height: 32px;
+  margin: 2px auto;
+}
+.inventory-slot.has-item {
+  border-color: #747b55;
+  background: #26312a;
+}
+.item-quantity {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font:
+    bold 10px/1.2 Verdana,
+    sans-serif;
+  color: #ece4be;
+  text-shadow: 1px 1px #111;
+  pointer-events: none;
+}
+.fishing-panel {
+  position: absolute;
+  bottom: 67px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(290px, calc(100% - 34px));
+  padding: 13px 15px;
+  border: 1px solid #a19061;
+  background: #111e19f2;
+  z-index: 3;
+  box-shadow: 0 4px 24px #0005;
+}
+.fishing-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #d3c397;
+  font:
+    10px system-ui,
+    sans-serif;
+}
+.fishing-heading > span:last-child {
+  color: #a6bb90;
+  font-size: 9px;
+}
+.fishing-track {
+  height: 17px;
+  position: relative;
+  margin-top: 14px;
+  background: #9f3736;
+  border: 1px solid #bc7462;
+  box-shadow: inset 0 2px 0 #0003;
+}
+.fishing-green {
+  position: absolute;
+  left: var(--green-start, 40%);
+  top: 0;
+  width: var(--green-width, 20%);
+  height: 100%;
+  background: #51a86a;
+  border-left: 1px solid #88d18b;
+  border-right: 1px solid #88d18b;
+}
+.fishing-cursor {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  left: 0;
+  width: 3px;
+  background: #fff0bc;
+  border: 1px solid #1b2319;
+  transform: translateX(-50%);
+  box-shadow: 0 0 4px #fff7;
+}
+.fishing-panel p {
+  margin: 10px 0 0;
+  color: #c6c2a4;
+  text-align: center;
+  font:
+    9px/1.6 system-ui,
+    sans-serif;
+}
+.fishing-boosted {
+  border-color: #82bf78;
+}
+.fishing-boosted .fishing-heading > span:last-child {
+  color: #b0e399;
+}
+.fishing-message {
+  position: absolute;
+  bottom: 29px;
+  left: 12px;
+  right: 12px;
+  margin: 0;
+  padding: 7px 10px;
+  background: #101c16e8;
+  border: 1px solid #78905255;
+  color: #ead6a3;
+  font:
+    10px/1.5 Verdana,
+    sans-serif;
+  text-align: center;
+  pointer-events: none;
+  z-index: 3;
+}
+.fishing-message:empty {
+  display: none;
+}

@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#141b18" />
+    <meta name="description" content="Digla RPG. Seu primeiro passo em um novo mundo." />
+    <title>Digla RPG — O início da jornada</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%23141b18'/%3E%3Cpath d='M12 7h9l9 8v11l-9 8h-9V7zm6 6v15l6-5v-6z' fill='%23c6ab73'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <main id="menu" class="menu-screen">
+      <section class="world-intro" aria-label="Bem-vindo a Digla">
+        <canvas id="landscape" aria-hidden="true"></canvas>
+        <div class="landscape-shade"></div>
+        <a class="wordmark" href="/" aria-label="Digla RPG início"
+          ><span class="brand-mark">D</span><span>DIGLA <small>RPG</small></span></a
+        >
+        <div class="intro-copy">
+          <p class="eyebrow"><span></span> UM NOVO MUNDO. A SUA HISTÓRIA.</p>
+          <h1>Toda lenda começa<br />com um <em>primeiro passo.</em></h1>
+          <p>Entre, escolha quem você quer ser<br />e encontre o seu caminho em Digla.</p>
+          <div class="intro-rule"><i></i><span>UMA AVENTURA À MODA ANTIGA</span><i></i></div>
+        </div>
+        <div class="landscape-label">
+          <span class="location-dot"></span> Refúgio de Brumavale
+          <span class="label-divider">/</span> Território inicial
+        </div>
+        <span class="intro-coordinate">29° N &nbsp; 27° E</span>
+      </section>
+      <section class="entry-panel">
+        <div class="panel-top">
+          <span class="status-dot"></span> MUNDO LOCAL <span class="version">ALPHA 0.1</span>
+        </div>
+        <div id="auth-view" class="auth-view">
+          <div class="small-emblem" aria-hidden="true">✦</div>
+          <p class="eyebrow">O CHAMADO DA AVENTURA</p>
+          <h2>Seu lugar é aqui.</h2>
+          <p class="subheading">A próxima história começa com você.</p>
+          <div class="tabs" role="tablist" aria-label="Acesso à conta">
+            <button
+              id="login-tab"
+              role="tab"
+              aria-selected="true"
+              aria-controls="account-form"
+              class="active"
+              type="button"
+            >
+              Entrar
+            </button>
+            <button
+              id="register-tab"
+              role="tab"
+              aria-selected="false"
+              aria-controls="account-form"
+              type="button"
+            >
+              Criar conta
+            </button>
+          </div>
+          <form id="account-form">
+            <label for="username">Nome do aventureiro</label>
+            <input
+              id="username"
+              name="username"
+              placeholder="Como você é conhecido?"
+              autocomplete="username"
+              minlength="3"
+              maxlength="20"
+              required
+              spellcheck="false"
+            />
+            <label for="password"
+              >Senha <span id="password-hint" hidden>mín. 6 caracteres</span></label
+            >
+            <div class="password-wrap">
+              <input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Sua chave para este mundo"
+                autocomplete="current-password"
+                minlength="6"
+                maxlength="128"
+                required
+              /><button
+                id="toggle-password"
+                type="button"
+                aria-label="Mostrar senha"
+                title="Mostrar senha"
+              >
+                ◉
+              </button>
+            </div>
+            <p id="auth-error" class="error" role="alert" hidden></p>
+            <button id="auth-submit" class="primary-button" type="submit">
+              <span>Entrar no mundo</span><span aria-hidden="true">↗</span>
+            </button>
+          </form>
+          <p id="auth-note" class="form-note">Seu mundo está esperando por você.</p>
+          <div class="local-note">
+            <span aria-hidden="true">⌂</span>
+            <p>
+              Uma aventura só sua, por enquanto.<br /><span
+                >Contas salvas neste computador. Sem e-mail.</span
+              >
+            </p>
+          </div>
+        </div>
+        <div id="outfit-view" class="outfit-view" hidden>
+          <button id="back-to-account" class="back-button" type="button">← Voltar à conta</button>
+          <p class="eyebrow">ANTES DO PRIMEIRO PASSO</p>
+          <h2>Dê vida à sua lenda.</h2>
+          <p class="subheading">Escolha seu visual. A história é você quem faz.</p>
+          <div class="character-stage">
+            <span class="stage-rune">✧</span
+            ><canvas
+              id="outfit-preview"
+              width="180"
+              height="180"
+              aria-label="Prévia do personagem"
+            ></canvas
+            ><span id="preview-name"></span>
+            <div class="rotate-controls">
+              <button id="rotate-left" aria-label="Girar personagem à esquerda" type="button">
+                ↶</button
+              ><span>GIRAR</span
+              ><button id="rotate-right" aria-label="Girar personagem à direita" type="button">
+                ↷
+              </button>
+            </div>
+          </div>
+          <div class="outfit-options" role="group" aria-label="Outfit">
+            <button data-outfit="citizen" class="selected" aria-pressed="true" type="button">
+              <canvas width="48" height="48" aria-hidden="true"></canvas
+              ><span>Citizen</span></button
+            ><button data-outfit="mage" aria-pressed="false" type="button">
+              <canvas width="48" height="48" aria-hidden="true"></canvas><span>Mage</span></button
+            ><button data-outfit="warrior" aria-pressed="false" type="button">
+              <canvas width="48" height="48" aria-hidden="true"></canvas><span>Warrior</span>
+            </button>
+          </div>
+          <div class="palette-heading">
+            <span>PERSONALIZAR CORES</span><span class="addon-badge">✓ Addons liberados</span>
+          </div>
+          <div id="color-parts" class="color-parts" role="group" aria-label="Parte do outfit">
+            <button data-part="head" class="selected" aria-pressed="true" type="button">
+              Cabeça</button
+            ><button data-part="body" aria-pressed="false" type="button">Corpo</button
+            ><button data-part="legs" aria-pressed="false" type="button">Pernas</button
+            ><button data-part="feet" aria-pressed="false" type="button">Botas</button>
+          </div>
+          <div id="palette" class="palette" role="group" aria-label="Cores do outfit"></div>
+          <p id="outfit-error" class="error" role="alert" hidden></p>
+          <button id="create-character" class="primary-button" type="button">
+            <span>Começar minha jornada</span><span aria-hidden="true">↗</span>
+          </button>
+        </div>
+        <footer class="panel-footer">
+          <span>DIGLA RPG</span><span>FEITO PARA EXPLORAR.</span>
+        </footer>
+      </section>
+    </main>
+    <main id="game" class="game-screen" hidden>
+      <header class="game-header">
+        <div class="wordmark">
+          <span class="brand-mark">D</span><span>DIGLA <small>RPG</small></span>
+        </div>
+        <div class="game-location">
+          <span class="location-dot"></span> REFÚGIO DE BRUMAVALE <span>Território inicial</span>
+        </div>
+        <button id="logout" class="secondary-button" type="button">
+          Sair do mundo <span aria-hidden="true">↗</span>
+        </button>
+      </header>
+      <div class="game-layout">
+        <section class="world-frame" aria-label="Mundo de Digla">
+          <canvas
+            id="world"
+            tabindex="0"
+            aria-label="Mova o personagem com as setinhas do teclado"
+          ></canvas
+          ><span id="player-label" class="player-label" aria-hidden="true"></span>
+          <button id="orc-label" class="orc-label" type="button" aria-label="Atacar orc" hidden>
+            <span>Orc</span><small id="orc-hp">30 / 30</small
+            ><span class="orc-health"><span id="orc-health-fill"></span></span>
+          </button>
+          <div id="ground-item-layer" class="ground-item-layer"></div>
+          <div id="damage-layer" class="damage-layer" aria-hidden="true"></div>
+          <div id="effect-layer" class="effect-layer" aria-hidden="true"></div>
+          <div id="world-zoom" class="map-zoom world-zoom" role="group" aria-label="Zoom do mundo">
+            <button id="world-zoom-out" type="button" aria-label="Diminuir zoom do mundo">−</button>
+            <button id="world-zoom-reset" type="button" aria-label="Restaurar zoom do mundo">
+              100%
+            </button>
+            <button id="world-zoom-in" type="button" aria-label="Aumentar zoom do mundo">+</button>
+          </div>
+          <div class="world-topline">
+            <span><span class="status-dot"></span> <span id="world-area-name">BRUMAVALE</span></span
+            ><span id="coordinates">X: 29 · Y: 27</span>
+          </div>
+          <div id="welcome" class="welcome-toast">
+            <span>✦</span>
+            <div>Bem-vindo a Brumavale.<small>Seu primeiro passo começa aqui.</small></div>
+          </div>
+          <div id="paused" class="pause-label" hidden>
+            Jogo em pausa · clique no mapa para continuar
+          </div>
+          <section id="fishing-panel" class="fishing-panel" aria-label="Minijogo de pesca" hidden>
+            <div class="fishing-heading">
+              <span>Pesca · nível <strong id="fishing-bar-level">1</strong></span
+              ><span id="fishing-chance">20% de chance</span>
+            </div>
+            <div class="fishing-track" aria-label="Acerte F na faixa verde central">
+              <span class="fishing-green"></span
+              ><span id="fishing-cursor" class="fishing-cursor"></span>
+            </div>
+            <p id="fishing-instruction">Aperte F no centro verde · Esc para parar</p>
+          </section>
+          <p id="fishing-message" class="fishing-message" role="status" aria-live="polite"></p>
+          <p id="action-prompt" class="action-prompt"></p>
+          <section
+            id="cooking-panel"
+            class="cooking-panel"
+            aria-labelledby="cooking-heading"
+            hidden
+          >
+            <div class="cooking-heading">
+              <h2 id="cooking-heading">Fogão de Brumavale</h2>
+              <button
+                id="close-cooking"
+                class="close-panel"
+                type="button"
+                aria-label="Fechar fogão"
+              >
+                ×
+              </button>
+            </div>
+            <p class="cooking-subtitle">
+              Culinária · nível <strong id="cooking-bar-level">1</strong>
+              <span id="cooking-chance">25% de sucesso</span>
+            </p>
+            <div class="cooking-recipe">
+              <span id="cooking-recipe-icon"></span>
+              <div>
+                <strong>Salmão assado</strong
+                ><span id="cooking-raw-count">0 salmão(ões) cru(s) na mochila</span>
+              </div>
+            </div>
+            <div class="cooking-buttons">
+              <button id="cook-one" type="button">Cozinhar 1</button
+              ><button id="cook-all" type="button">Cozinhar todos (0)</button>
+            </div>
+            <div id="cooking-running" hidden>
+              <div class="cooking-progress" role="progressbar" aria-label="Preparo do salmão">
+                <span id="cooking-progress-fill"></span>
+              </div>
+              <div class="cooking-running-info">
+                <span id="cooking-remaining"></span
+                ><button id="stop-cooking" type="button">Parar</button>
+              </div>
+            </div>
+            <p id="cooking-result" role="status">Escolha o que deseja cozinhar.</p>
+          </section>
+          <section id="loot-panel" class="loot-panel" aria-labelledby="loot-heading" hidden>
+            <div class="backpack-heading">
+              <h2 id="loot-heading">Loot do orc <span id="loot-capacity">0 / 6 espaços</span></h2>
+              <button id="close-loot" class="close-panel" type="button" aria-label="Fechar loot">
+                ×
+              </button>
+            </div>
+            <div id="loot-grid" class="loot-grid" role="list" aria-label="Loot do orc"></div>
+          </section>
+          <section id="staff-panel" class="staff-panel" aria-labelledby="staff-heading" hidden>
+            <div class="backpack-heading">
+              <h2 id="staff-heading">Elemento do cajado</h2>
+              <button id="close-staff" class="close-panel" type="button" aria-label="Fechar cajado">
+                ×
+              </button>
+            </div>
+            <p>Alcance: 3 quadrados · Dano: <span id="staff-damage">4–7</span></p>
+            <div class="element-buttons">
+              <button id="element-fire" class="element-fire" type="button" aria-pressed="true">
+                Fogo
+              </button>
+              <button id="element-water" class="element-water" type="button" aria-pressed="false">
+                Água
+              </button>
+              <button
+                id="element-lightning"
+                class="element-lightning"
+                type="button"
+                aria-pressed="false"
+              >
+                Raio
+              </button>
+            </div>
+            <button id="staff-equip" type="button">Equipar cajado</button>
+          </section>
+          <div class="world-bottomline">
+            <span id="region-name">BRUMAVALE</span><span>✦</span><span>UM MUNDO A DESCOBRIR</span>
+          </div>
+        </section>
+        <aside class="game-sidebar">
+          <section class="minimap-card">
+            <div class="sidebar-heading"><span>ARREDORES</span><span class="north">N ↑</span></div>
+            <canvas
+              id="minimap"
+              width="256"
+              height="220"
+              aria-label="Minimapa de Brumavale, Terras de Brasas e Costa das Marés"
+            ></canvas>
+            <div class="map-zoom" role="group" aria-label="Zoom do minimapa">
+              <button id="minimap-zoom-out" type="button" aria-label="Diminuir zoom do minimapa">
+                −
+              </button>
+              <button id="minimap-zoom-reset" type="button" aria-label="Mostrar mapa inteiro">
+                1×
+              </button>
+              <button id="minimap-zoom-in" type="button" aria-label="Aumentar zoom do minimapa">
+                +
+              </button>
+            </div>
+            <p class="minimap-hint">
+              Clique no minimapa para andar. Use + / − ou a roda para zoom.
+            </p>
+            <p><span class="location-dot"></span> Você está aqui</p>
+            <p id="floor-label" hidden aria-hidden="true">Superfície · Piso 0</p>
+            <p id="minimap-legend" class="minimap-legend" hidden aria-hidden="true"></p>
+          </section>
+          <section class="vitals-card" aria-label="Vida e mana">
+            <div class="vital-heading">
+              <span>VIDA</span><span id="health-value">100 / 100</span>
+            </div>
+            <div
+              id="health-bar"
+              class="vital-bar health-bar"
+              role="progressbar"
+              aria-label="Vida"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="100"
+            >
+              <span></span>
+            </div>
+            <div class="vital-heading"><span>MANA</span><span id="mana-value">100 / 100</span></div>
+            <div
+              id="mana-bar"
+              class="vital-bar mana-bar"
+              role="progressbar"
+              aria-label="Mana"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="100"
+            >
+              <span></span>
+            </div>
+            <button
+              id="toggle-skills"
+              class="skills-button"
+              type="button"
+              aria-expanded="false"
+              aria-controls="skills-panel"
+            >
+              Skills e níveis <span aria-hidden="true">↗</span>
+            </button>
+          </section>
+          <section id="skills-panel" class="skills-card" aria-labelledby="skills-heading" hidden>
+            <div class="backpack-heading">
+              <h2 id="skills-heading">Skills</h2>
+              <button
+                id="close-skills"
+                class="close-panel"
+                type="button"
+                aria-label="Fechar skills"
+              >
+                ×
+              </button>
+            </div>
+            <div class="skill-row">
+              <div>
+                <strong>Combate</strong><span>Nível <b id="combat-level">1</b></span>
+              </div>
+              <span id="combat-xp">0 / 100 XP</span>
+              <div
+                id="combat-progress"
+                class="skill-progress"
+                role="progressbar"
+                aria-label="XP de Combate"
+                aria-valuenow="0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <span></span>
+              </div>
+            </div>
+            <div class="skill-row">
+              <div>
+                <strong>Vitalidade</strong><span>Nível <b id="vitality-level">1</b></span>
+              </div>
+              <span id="vitality-xp">0 / 100 XP</span>
+              <div
+                id="vitality-progress"
+                class="skill-progress"
+                role="progressbar"
+                aria-label="XP de Vitalidade"
+                aria-valuenow="0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <span></span>
+              </div>
+            </div>
+            <div class="skill-row">
+              <div>
+                <strong>Pesca</strong><span>Nível <b id="fishing-level">1</b></span>
+              </div>
+              <span id="fishing-xp">0 / 100 XP</span>
+              <div
+                id="fishing-progress"
+                class="skill-progress"
+                role="progressbar"
+                aria-label="XP de Pesca"
+                aria-valuenow="0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <span></span>
+              </div>
+            </div>
+            <div class="skill-row">
+              <div>
+                <strong>Magia</strong><span>Nível <b id="magic-level">1</b></span>
+              </div>
+              <span id="magic-xp">0 / 100 XP</span>
+              <div
+                id="magic-progress"
+                class="skill-progress magic-progress"
+                role="progressbar"
+                aria-label="XP de Magia"
+                aria-valuenow="0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <span></span>
+              </div>
+            </div>
+            <div class="skill-row">
+              <div>
+                <strong>Culinária</strong><span>Nível <b id="cooking-level">1</b></span>
+              </div>
+              <span id="cooking-xp">0 / 100 XP</span>
+              <div
+                id="cooking-progress"
+                class="skill-progress cooking-skill-progress"
+                role="progressbar"
+                aria-label="XP de Culinária"
+                aria-valuenow="0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <span></span>
+              </div>
+            </div>
+          </section>
+          <section class="equipment-card" aria-labelledby="equipment-heading">
+            <div class="sidebar-heading">
+              <span id="equipment-heading">EQUIPAMENTOS</span
+              ><span class="panel-ornament" aria-hidden="true">✦</span>
+            </div>
+            <div
+              id="equipment-grid"
+              class="equipment-grid"
+              role="group"
+              aria-label="Espaços de equipamento"
+            ></div>
+            <p class="backpack-hint">Botão direito na mochila para abrir.</p>
+          </section>
+          <section
+            id="backpack-panel"
+            class="backpack-card"
+            aria-labelledby="backpack-heading"
+            hidden
+          >
+            <div class="backpack-heading">
+              <h2 id="backpack-heading">Mochila <span id="backpack-capacity">12 espaços</span></h2>
+              <button
+                id="close-backpack"
+                type="button"
+                aria-label="Fechar mochila"
+                title="Fechar mochila"
+              >
+                ×
+              </button>
+            </div>
+            <div
+              id="inventory-grid"
+              class="inventory-grid"
+              role="list"
+              aria-label="Inventário da mochila"
+            ></div>
+          </section>
+          <p id="save-status" class="save-status" role="status">
+            Seu progresso é salvo automaticamente.
+          </p>
+        </aside>
+      </div>
+      <footer class="game-footer">
+        <span><span class="status-dot"></span> MUNDO LOCAL <i>/</i> ALPHA 0.1</span
+        ><span>Sem pressa. Toda jornada começa com um passo.</span><span>DIGLA RPG © 2026</span>
+      </footer>
+    </main>
+  </body>
+</html>

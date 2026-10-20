@@ -5,10 +5,12 @@ import path from 'node:path';
 import { openMultiplayerStore } from './server/storage.mjs';
 import { createAccountApi } from './server/api.mjs';
 import { reply, servePublic } from './server/http.mjs';
+import { hostingConfig } from './server/hosting.mjs';
+import { GAME_VERSION } from './public/js/config.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const store = await openMultiplayerStore(process.env.DIGLA_DATA_DIR || path.join(root, 'data'));
-const handleApi = createAccountApi(store);
+const handleApi = createAccountApi({ ...store, ...hostingConfig() });
 const server = http.createServer(async (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -19,7 +21,9 @@ const server = http.createServer(async (req, res) => {
   );
   try {
     const url = new URL(req.url, 'http://localhost');
-    if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
+    if (url.pathname === '/healthz' && ['GET', 'HEAD'].includes(req.method))
+      reply(res, 200, { status: 'ok', gameVersion: GAME_VERSION });
+    else if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
     else await servePublic(req, res, url.pathname, path.join(root, 'public'));
   } catch (error) {
     console.error(error.message);

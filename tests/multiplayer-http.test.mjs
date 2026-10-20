@@ -17,7 +17,7 @@ test('servidor de produção: mundo compartilhado, tick independente, privacidad
   const directory = await mkdtemp(path.join(os.tmpdir(), 'digla-http-multiplayer-'));
   let child, base;
   const cookies = {};
-  async function start() {
+  async function start(hostingEnv = {}) {
     child = spawn(process.execPath, ['server.mjs'], {
       cwd: new URL('..', import.meta.url),
       env: {
@@ -26,6 +26,10 @@ test('servidor de produção: mundo compartilhado, tick independente, privacidad
         HOST: '127.0.0.1',
         DIGLA_DATA_DIR: directory,
         DIGLA_TEST_MODE: '0',
+        PUBLIC_ORIGIN: '',
+        RENDER_EXTERNAL_URL: '',
+        DIGLA_TEMPORARY_SAVES: '0',
+        ...hostingEnv,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -84,6 +88,11 @@ test('servidor de produção: mundo compartilhado, tick independente, privacidad
     await store.save();
     seed.close();
     await start();
+    assert.deepEqual(await (await fetch(base + '/healthz')).json(), {
+      status: 'ok',
+      gameVersion: '1.0.0',
+    });
+    assert.equal((await api('', 'server-info')).body.temporarySaves, false);
     assert.equal((await api('', 'session')).status, 401);
     for (const name of ['Alpha', 'Beta']) {
       const r = await login(name);
@@ -182,6 +191,41 @@ test('servidor de produção: mundo compartilhado, tick independente, privacidad
     );
     assert.equal(reloaded[0].groundItems.length, 0);
     assert.equal(reloaded[0].orc.health, reloaded[1].orc.health);
+
+    // Render terminates TLS before forwarding HTTP to Node. Simulate its trusted
+    // configured origin, rather than trusting arbitrary X-Forwarded-* headers.
+    await stop();
+    await start({
+      RENDER_EXTERNAL_URL: 'https://digla-test.onrender.com',
+      DIGLA_TEMPORARY_SAVES: '1',
+    });
+    const hostedLogin = await api(
+      'Alpha',
+      'login',
+      { username: 'Alpha', password: 'test-http-only' },
+      { origin: 'https://digla-test.onrender.com' },
+    );
+    assert.equal(hostedLogin.status, 200);
+    assert.match(hostedLogin.headers.get('set-cookie'), /; Secure/);
+    assert.equal((await api('', 'server-info')).body.temporarySaves, true);
+    assert.equal(
+      (
+        await api(
+          'Alpha',
+          'social',
+          { action: 'chat', text: 'blocked' },
+          {
+            origin: 'https://evil.example',
+            'x-forwarded-proto': 'https',
+            'x-forwarded-host': 'evil.example',
+          },
+        )
+      ).status,
+      403,
+    );
+    const logout = await api('Alpha', 'logout', {}, { origin: 'https://digla-test.onrender.com' });
+    assert.equal(logout.status, 200);
+    assert.match(logout.headers.get('set-cookie'), /Max-Age=0; Secure/);
   } finally {
     await stop();
     await rm(directory, { recursive: true, force: true });

@@ -6,6 +6,12 @@ Comece por `public/js/config.js` para ajustes gerais e por `public/js/world/map.
 
 ### Multiplayer e salvamento sem banco — 1.0
 
+**Hospedagem:** `render.yaml` descreve um servidor Node gratuito, porta automática do provedor e health check `/healthz`. `.github/workflows/ci.yml` executa formatação, regras/HTTP e testes de navegador em Linux/Node 24; Actions têm permissão apenas de leitura do código. O Blueprint solicita deploy após checks passarem. A ativação do serviço é feita na conta Render pelo botão do README.
+
+`server/hosting.mjs` lê `PUBLIC_ORIGIN` ou `RENDER_EXTERNAL_URL`. `server/api.mjs` compara Origin com esse valor e emite cookies Secure em HTTPS; não confia em cabeçalhos de proxy arbitrários. Sem origem configurada, localhost e rede local continuam funcionando por HTTP. `GET /api/server-info` informa apenas versão, multiplayer e se os salvamentos são temporários. Com `DIGLA_TEMPORARY_SAVES=1`, `public/app.js` mostra esse aviso no login. `tests/hosting.test.mjs` e o teste HTTP verificam origem, cookies, bloqueio de origem externa e compatibilidade local.
+
+O Blueprint **não inclui dados locais nem armazenamento persistente**: o filesystem Free pode ser apagado em suspensões/reinícios/deploys. Nunca use Git como backup de contas. Para preservar dados online futuramente, configure armazenamento privado persistente e mantenha apenas um servidor por pasta de dados.
+
 | Arquivo                           | Responsabilidade                                                                                                                                                            |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `server/multiplayer.mjs`          | Mundo único, fila de ações, presença, snapshots por jogador, eventos, colisão, limite de velocidade, chat, grupos, reserva de loot e trocas com confirmação dupla.          |

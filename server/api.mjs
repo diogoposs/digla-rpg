@@ -1,6 +1,6 @@
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
-import { SPAWN, OUTFITS, COLORS } from '../public/js/config.js';
+import { SPAWN, OUTFITS, COLORS, GAME_VERSION } from '../public/js/config.js';
 import { walkable } from '../public/js/world/map.js';
 import { reply, readJSON } from './http.mjs';
 import { publicProgress, ensureProgress } from '../public/js/game/progression.js';
@@ -13,7 +13,15 @@ import { floorOf, validFloorMove, sameFloor } from '../public/js/world/elevation
 const scrypt = promisify(scryptCallback);
 
 // Rotas de cadastro, login, sessão, posição e saída. Senhas usam scrypt + salt.
-export function createAccountApi({ accounts, save, sharedWorld }) {
+export function createAccountApi({
+  accounts,
+  save,
+  sharedWorld,
+  publicOrigin = '',
+  secureCookies = false,
+  temporarySaves = false,
+}) {
+  const cookieSecurity = secureCookies ? '; Secure' : '';
   const sessions = new Map();
   const attempts = new Map();
   const fishing = createFishingService({ save });
@@ -68,13 +76,19 @@ export function createAccountApi({ accounts, save, sharedWorld }) {
     const token = randomBytes(32).toString('hex');
     sessions.set(token, { key, expires: Date.now() + 7 * 86400000 });
     reply(res, status, publicAccount(accounts[key]), {
-      'Set-Cookie': `digla_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800`,
+      'Set-Cookie': `digla_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800${cookieSecurity}`,
     });
   }
 
   async function handleApi(req, res, url, data) {
-    if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`)
+    if (req.headers.origin && req.headers.origin !== (publicOrigin || `http://${req.headers.host}`))
       return reply(res, 403, { error: 'Origem não permitida.' });
+    if (req.method === 'GET' && url.pathname === '/api/server-info')
+      return reply(res, 200, {
+        gameVersion: GAME_VERSION,
+        multiplayer: Boolean(multiplayer),
+        temporarySaves,
+      });
     if (req.method === 'GET' && url.pathname === '/api/session') {
       const session = auth(req);
       if (session) multiplayer?.touch(session.account);
@@ -207,7 +221,9 @@ export function createAccountApi({ accounts, save, sharedWorld }) {
         res,
         200,
         { ok: true },
-        { 'Set-Cookie': 'digla_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0' },
+        {
+          'Set-Cookie': `digla_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${cookieSecurity}`,
+        },
       );
     }
     if (url.pathname === '/api/fishing/start') {

@@ -8,6 +8,18 @@ Para entender e editar o projeto, veja o **[Guia do código](docs/GUIA-DO-CODIGO
 
 ## Jogar
 
+### Publicar gratuitamente pela Render e GitHub
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/diogoposs/digla-rpg)
+
+O arquivo `render.yaml` configura **um único servidor Web Free**, sem banco de dados ou disco pago. O botão acima abre a configuração na sua conta Render: entre com GitHub, confira o plano **Free** e crie o Blueprint. Quando o serviço estiver **Live**, use a URL HTTPS mostrada pela Render. Nenhuma conta ou salvamento do computador é enviado: o serviço começa com um mundo novo.
+
+**Os salvamentos dessa hospedagem são temporários.** O plano gratuito pode suspender o serviço por inatividade e apagar os arquivos ao suspender, reiniciar ou publicar uma versão. Contas, personagens e progresso criados online podem desaparecer. O aviso também aparece no login dessa configuração. A página pode demorar para abrir enquanto o serviço desperta. Para preservar progresso futuramente, será necessário armazenamento persistente; isso não é contratado por este projeto. [Limitações oficiais do plano Free](https://render.com/docs/free).
+
+Depois de conectar o serviço ao repositório, atualizações em `main` disparam testes no GitHub Actions; a configuração da Render solicita publicação automática após os checks passarem. O endereço público é atribuído pela hospedagem, não é fixado no código. `RENDER_EXTERNAL_URL` configura automaticamente a origem HTTPS e cookies Secure; um domínio próprio pode ser configurado por `PUBLIC_ORIGIN`.
+
+O Arena60 usa GitHub Pages, que publica arquivos estáticos. O Digla precisa do servidor Node.js para contas, mundo compartilhado e combate; por isso o jogo completo é servido pela Render, com código e atualização pelo GitHub. Publicar apenas `public/` no Pages deixaria login e multiplayer sem servidor. [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages).
+
 ### Multiplayer: iniciar e conectar
 
 Na pasta do projeto, execute `npm.cmd start` ou `npm.cmd run dev`. No computador que executa o servidor, abra **http://localhost:3000**. Outros computadores na mesma rede usam **`http://IP-DO-SERVIDOR:3000`**; consulte o IPv4 com `ipconfig` no servidor. O processo deve continuar aberto. O servidor escuta em `0.0.0.0` por padrão; para restringir ao próprio computador, defina `$env:HOST='127.0.0.1'` antes de iniciar. Nenhuma regra de firewall ou roteador é alterada pelo projeto.
@@ -21,7 +33,7 @@ Cada pessoa cria uma conta própria. Para testar duas pessoas no mesmo computado
 - **Servidor:** simula o mundo a cada 100 ms, mesmo sem pedidos de combate do cliente. O navegador consulta atualizações a cada 250 ms e interpola movimentos. O servidor verifica deslocamentos, alcance, recargas, inventários e ações concorrentes.
 - **Pausar:** interrompe os controles daquele jogador; o mundo compartilhado continua ativo. Uma sessão sem comunicação por dez segundos sai da lista online.
 
-Publicar este código no GitHub **não hospeda uma partida na Internet**. Esta versão permite jogar no servidor local e pela rede local. Hospedagem externa e HTTPS são uma etapa separada.
+Publicar o código no GitHub **não cria o servidor de partidas automaticamente**. Use o Blueprint acima para ativar a hospedagem, ou execute o servidor localmente conforme esta seção.
 
 ### Aventura e progressão — versão 0.9
 

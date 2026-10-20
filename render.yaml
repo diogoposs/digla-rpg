@@ -1,0 +1,26 @@
+# Servidor gratuito de testes. Não cria banco, disco pago nem outros serviços.
+# O filesystem do plano Free é temporário: contas/progresso podem ser apagados.
+services:
+  - type: web
+    name: digla-rpg
+    runtime: node
+    plan: free
+    region: virginia
+    branch: main
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DIGLA_DATA_DIR
+        value: ./data
+      - key: DIGLA_TEST_MODE
+        value: '0'
+      - key: DIGLA_TEMPORARY_SAVES
+        value: '1'

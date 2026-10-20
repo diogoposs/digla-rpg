@@ -35,6 +35,11 @@ function tick(time) {
 }
 
 requestAnimationFrame(tick);
+api('server-info')
+  .then((info) => {
+    $('temporary-save-notice').hidden = !info.temporarySaves;
+  })
+  .catch(() => {});
 api('session')
   .then(auth.openWorld)
   .catch((error) => {

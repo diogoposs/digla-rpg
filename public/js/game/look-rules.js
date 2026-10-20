@@ -37,6 +37,10 @@ export function lookItem(id, quantity = 1) {
   if (attributes.length) text += ` (${attributes.join(', ')})`;
   text += '.';
   if (quantity > 1) text += ` Quantity: ${quantity}.`;
+  if (ITEMS[id]?.requires)
+    text += ` Requires: ${Object.entries(ITEMS[id].requires)
+      .map(([skill, level]) => `${skill} ${level}`)
+      .join(', ')}.`;
   if (id === 'roasted_salmon')
     text += ' It restores 20 health and 15 mana every 3 seconds for 1 minute.';
   if (ITEMS[id]?.category === 'potion')

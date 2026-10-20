@@ -52,11 +52,15 @@ export async function setup(page, position, health = 95, random = () => 0.99999,
           ? await service.attack(account, route.request().postDataJSON())
           : action === 'cast'
             ? await service.cast(account, route.request().postDataJSON())
-            : action === 'loot'
-              ? service.loot(account, route.request().postDataJSON())
-              : action === 'heal'
-                ? await service.heal(account)
-                : service.stop(account, route.request().postDataJSON());
+            : action === 'utility'
+              ? await service.utility(account, route.request().postDataJSON())
+              : action === 'adventure'
+                ? await service.adventure(account, route.request().postDataJSON())
+                : action === 'loot'
+                  ? service.loot(account, route.request().postDataJSON())
+                  : action === 'heal'
+                    ? await service.heal(account)
+                    : service.stop(account, route.request().postDataJSON());
     events.push(...(result.events || []));
     await route.fulfill({ json: result });
   });
@@ -99,8 +103,16 @@ export async function setup(page, position, health = 95, random = () => 0.99999,
       validFloorMove(account.position, data) &&
       service.canMove(account, x, y, floorOf(data))
     ) {
+      service.moved(account, data);
       account.position = data;
-      await route.fulfill({ json: { ok: true } });
+      await route.fulfill({
+        json: {
+          ok: true,
+          worldRevision: account.worldRevision,
+          utility: account.utility,
+          serverNow: Date.now(),
+        },
+      });
     } else
       await route.fulfill({
         status: 409,

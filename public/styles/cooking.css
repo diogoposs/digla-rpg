@@ -19,15 +19,16 @@
 }
 .cooking-panel {
   position: absolute;
-  bottom: 67px;
+  top: 50%;
+  bottom: auto;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   width: min(330px, calc(100% - 30px));
   padding: 16px;
   background: #1e241bf5;
   border: 1px solid #b29962;
   box-shadow: 0 4px 24px #0008;
-  z-index: 4;
+  z-index: 14;
 }
 .cooking-heading {
   display: flex;

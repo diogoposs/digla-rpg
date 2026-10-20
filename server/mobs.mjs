@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { ITEMS } from '../public/js/items.js';
 import { SPAWN, WELL, WIDTH, HEIGHT } from '../public/js/config.js';
 import { walkable } from '../public/js/world/map.js';
-import { ensureProgress, skillProgress } from '../public/js/game/progression.js';
+import { ensureProgress, publicProgress, skillProgress } from '../public/js/game/progression.js';
+import { combatStats, recordKill, mobMaximum } from '../public/js/game/adventure-rules.js';
 import { gainVitalityXp } from '../public/js/game/vitality-rules.js';
+import { cancelRecall } from '../public/js/game/utility-rules.js';
 import {
   LIGHTNING_STAFF,
   LIGHTNING_AUTO_INTERVAL_MS,
@@ -29,13 +32,15 @@ import {
   ATTACK_INTERVAL_MS,
   ORC_MOVE_INTERVAL_MS,
   ORC_RESPAWN_MS,
+  CORPSE_LIFETIME_MS,
   weaponRange,
   distance,
 } from '../public/js/game/world-rules.js';
 
 // Todas as criaturas usam as mesmas regras de seleção, perseguição e combate.
-export function createMobService({ save, random = Math.random, now = Date.now }) {
+export function createMobService({ save, random = Math.random, now = Date.now, multiplayer }) {
   const runtimes = new WeakMap();
+  let sharedCreatures;
   function runtime(account) {
     ensureProgress(account);
     let state = runtimes.get(account);
@@ -46,17 +51,21 @@ export function createMobService({ save, random = Math.random, now = Date.now })
         nextPlayerAttack: 0,
         respawnUntil: 0,
         poisons: new Map(),
-        creatures: Object.fromEntries(
-          getMobs(account).map((mob) => [
-            mob.id,
-            {
-              aggro: false,
-              nextMove: now() + ORC_MOVE_INTERVAL_MS,
-              nextAttack: now() + (MOB_DEFINITIONS[mob.id].attackIntervalMs ?? ATTACK_INTERVAL_MS),
-            },
-          ]),
-        ),
+        creatures:
+          sharedCreatures ||
+          Object.fromEntries(
+            getMobs(account).map((mob) => [
+              mob.id,
+              {
+                aggro: false,
+                nextMove: now() + ORC_MOVE_INTERVAL_MS,
+                nextAttack:
+                  now() + (MOB_DEFINITIONS[mob.id].attackIntervalMs ?? ATTACK_INTERVAL_MS),
+              },
+            ]),
+          ),
       };
+      if (multiplayer) sharedCreatures = state.creatures;
       runtimes.set(account, state);
     }
     return state;
@@ -65,12 +74,18 @@ export function createMobService({ save, random = Math.random, now = Date.now })
     min + Math.min(max - min, Math.floor(random() * (max - min + 1)));
   function snapshot(account, extra = {}) {
     const state = runtime(account),
+      progress = publicProgress(account),
       mobs = getMobs(account).map((mob) => ({
         ...mob,
         targeted: state.targetId === mob.id,
         chasing: state.creatures[mob.id].aggro,
       }));
     return {
+      quests: progress.quests,
+      gameSettings: progress.gameSettings,
+      combatStats: progress.combatStats,
+      gathering: progress.gathering,
+      miningNodes: progress.miningNodes,
       worldRevision: account.worldRevision,
       nextGroundCleanupAt: account.nextGroundCleanupAt,
       vitals: account.vitals,
@@ -82,8 +97,13 @@ export function createMobService({ save, random = Math.random, now = Date.now })
       equipment: account.equipment,
       attackElement: account.attackElement,
       abilityCooldowns: account.abilityCooldowns || {},
+      utility: account.utility,
+      quickSlots: account.quickSlots,
+      hazards: Object.values(state.creatures).flatMap((c) => (c.special ? [c.special] : [])),
       serverNow: now(),
       skills: {
+        mining: progress.skills.mining,
+        smithing: progress.skills.smithing,
         combat: skillProgress(account.skills.combat.xp),
         magic: skillProgress(account.skills.magic.xp),
         vitality: skillProgress(account.skills.vitality.xp),
@@ -98,10 +118,20 @@ export function createMobService({ save, random = Math.random, now = Date.now })
     state.poisons.clear();
     state.respawnUntil = now() + 750;
     for (const mob of getMobs(account)) {
+      if (multiplayer) {
+        const c = state.creatures[mob.id];
+        if (c.targetPlayerId === account.id) {
+          c.targetPlayerId = null;
+          c.aggro = false;
+          c.special = null;
+        }
+        continue;
+      }
       state.creatures[mob.id].aggro = false;
+      state.creatures[mob.id].special = null;
       Object.assign(mob, MOB_DEFINITIONS[mob.id].spawn);
     }
-    events.push({ type: 'player-respawn' });
+    events.push({ type: 'player-respawn', ...(multiplayer ? { victimId: account.id } : {}) });
   }
   function makeCorpse(account, mob) {
     const corpse = {
@@ -112,13 +142,22 @@ export function createMobService({ save, random = Math.random, now = Date.now })
       x: mob.x,
       y: mob.y,
       z: floorOf(mob),
+      createdAt: now(),
+      expiresAt: now() + CORPSE_LIFETIME_MS,
       slots: Array(ORC_LOOT_CAPACITY).fill(null),
     };
-    if (mob.kind === 'orc' && random() < ORC_DROP_CHANCE)
+    if (mob.kind === 'orc' && random() < (account.gameSettings.testMode ? ORC_DROP_CHANCE : 1 / 3))
       corpse.slots[0] = { id: random() < 0.5 ? 'sword' : 'staff', quantity: 1 };
     corpse.slots[1] = { id: 'gold_coin', quantity: roll(COIN_DROP_MIN, COIN_DROP_MAX) };
+    if (mob.id === 'orc_commander') {
+      corpse.slots[1].quantity = roll(40, 80);
+      if (random() < 0.25) corpse.slots[2] = { id: 'commander_blade', quantity: 1 };
+    }
+    const previous = mob.id === 'orc' ? account.corpse : account.elementalCorpses[mob.id];
+    if (previous) (account.extraCorpses ??= []).push(previous);
     if (mob.id === 'orc') account.corpse = corpse;
     else account.elementalCorpses[mob.id] = corpse;
+    multiplayer?.onDeath?.(account, mob, corpse);
   }
   function damageMob(
     account,
@@ -130,17 +169,24 @@ export function createMobService({ save, random = Math.random, now = Date.now })
     if (mob.health <= 0) return false;
     const weak = !!element && element === mob.weakness;
     const multiplier = weak ? WEAKNESS_MULTIPLIER : 1;
-    const dealt = Math.min(Math.round(base * multiplier), mob.health);
+    const mitigation = element ? 1 : 1 - (MOB_DEFINITIONS[mob.id].physicalReduction || 0);
+    const dealt = Math.min(Math.max(1, Math.round(base * multiplier * mitigation)), mob.health);
     mob.health -= dealt;
-    gainVitalityXp(account, dealt);
+    if (multiplayer?.awardDamage) multiplayer.awardDamage(account, mob, dealt, { magic, sword });
+    else gainVitalityXp(account, dealt);
     state.creatures[mob.id].aggro = true;
-    if (magic || sword) account.skills[magic ? 'magic' : 'combat'].xp += dealt * WEAPON_XP_FACTOR;
+    if (multiplayer && !state.creatures[mob.id].targetPlayerId)
+      state.creatures[mob.id].targetPlayerId = account.id;
+    if (!multiplayer?.awardDamage && (magic || sword))
+      account.skills[magic ? 'magic' : 'combat'].xp += dealt * WEAPON_XP_FACTOR;
     events.push({
       type: 'player-hit',
       mobId: mob.id,
       mobName: mob.name,
       damage: dealt,
-      critical: criticalMax !== undefined && dealt === Math.round(criticalMax * multiplier),
+      critical:
+        criticalMax !== undefined &&
+        dealt === Math.max(1, Math.round(criticalMax * multiplier * mitigation)),
       weakness: weak,
       x: mob.x,
       y: mob.y,
@@ -155,11 +201,14 @@ export function createMobService({ save, random = Math.random, now = Date.now })
       ...(ability ? { ability } : {}),
     });
     if (!mob.health) {
-      mob.respawnAt = now() + ORC_RESPAWN_MS;
+      mob.respawnAt = now() + (MOB_DEFINITIONS[mob.id].respawnMs || ORC_RESPAWN_MS);
+      recordKill(account, mob);
       makeCorpse(account, mob);
       if (state.targetId === mob.id) state.targetId = null;
       state.poisons.delete(mob.id);
       state.creatures[mob.id].aggro = false;
+      if (multiplayer) state.creatures[mob.id].targetPlayerId = null;
+      state.creatures[mob.id].special = null;
       events.push({
         type: mob.id === 'orc' ? 'orc-defeated' : 'mob-defeated',
         mobId: mob.id,
@@ -192,13 +241,13 @@ export function createMobService({ save, random = Math.random, now = Date.now })
       ? { min: base, max: base }
       : weapon === 'staff'
         ? staffDamage(skillProgress(account.skills.magic.xp).level)
-        : { min: DAMAGE_MIN, max: DAMAGE_MAX };
+        : combatStats(account);
     state.nextPlayerAttack = now() + (lightning ? LIGHTNING_AUTO_INTERVAL_MS : ATTACK_INTERVAL_MS);
     return damageMob(account, state, mob, events, {
       base: lightning ? base : roll(limits.min, limits.max),
       element: lightning ? 'lightning' : weapon === 'staff' ? account.attackElement : null,
       magic: lightning || weapon === 'staff',
-      sword: weapon === 'sword',
+      sword: weapon === 'sword' || ITEMS[weapon]?.melee,
       criticalMax: lightning ? undefined : limits.max,
     });
   }
@@ -223,7 +272,10 @@ export function createMobService({ save, random = Math.random, now = Date.now })
           !walkable(step.x, step.y, floorOf(mob)) ||
           transitionAt(step.x, step.y, floorOf(mob)) ||
           isSafeZone(step) ||
-          distance(step, account.position) === 0 ||
+          (MOB_DEFINITIONS[mob.id].boss && !inBossRoom(step)) ||
+          (multiplayer
+            ? multiplayer.players().some((p) => distance(step, p.position) === 0)
+            : distance(step, account.position) === 0) ||
           getMobs(account).some(
             (other) => other.id !== mob.id && other.health > 0 && distance(other, step) === 0,
           )
@@ -235,6 +287,79 @@ export function createMobService({ save, random = Math.random, now = Date.now })
     }
     return null;
   }
+  const inBossRoom = (p) => floorOf(p) === -1 && p.x >= 80 && p.x <= 94 && p.y >= 13 && p.y <= 20;
+  function hurtPlayer(account, mob, raw, events, { element, critical = false } = {}) {
+    const damage = Math.max(
+      1,
+      Math.round(raw * (element ? 1 : 1 - combatStats(account).reduction)),
+    );
+    account.vitals.health = Math.max(0, account.vitals.health - damage);
+    if (cancelRecall(account))
+      events.push({ type: 'recall-cancelled', ...(multiplayer ? { victimId: account.id } : {}) });
+    if (account.gathering) {
+      account.gathering = null;
+      events.push({ type: 'gathering-cancelled' });
+    }
+    if (mob.variant === 'archer')
+      events.push({
+        type: 'enemy-projectile',
+        element: 'physical',
+        x: account.position.x,
+        y: account.position.y,
+        z: floorOf(account.position),
+        fromX: mob.x,
+        fromY: mob.y,
+      });
+    events.push({
+      type: mob.id === 'orc' ? 'orc-hit' : 'mob-hit',
+      ...(multiplayer ? { victimId: account.id } : {}),
+      mobId: mob.id,
+      mobName: mob.name,
+      damage,
+      critical,
+      x: account.position.x,
+      y: account.position.y,
+      z: floorOf(account.position),
+      ...(element ? { element, fromX: mob.x, fromY: mob.y } : {}),
+    });
+  }
+  function prepareSpecial(account, mob, creature, time) {
+    const shaman = mob.variant === 'shaman',
+      cycle = (creature.cycle || 0) % 3;
+    creature.cycle = (creature.cycle || 0) + 1;
+    let tiles = [],
+      kind = shaman ? 'spell' : cycle === 0 ? 'frontal' : cycle === 1 ? 'slam' : 'charge';
+    const dx = account.position.x - mob.x,
+      dy = account.position.y - mob.y;
+    const step =
+      Math.abs(dx) > Math.abs(dy)
+        ? { x: Math.sign(dx) || 1, y: 0 }
+        : { x: 0, y: Math.sign(dy) || 1 };
+    if (shaman || kind === 'slam') {
+      const center = shaman ? account.position : mob;
+      for (let y = -1; y <= 1; y++)
+        for (let x = -1; x <= 1; x++)
+          tiles.push({ x: center.x + x, y: center.y + y, z: floorOf(mob) });
+    } else
+      for (let i = 1; i <= (kind === 'charge' ? 4 : 3); i++)
+        tiles.push({ x: mob.x + step.x * i, y: mob.y + step.y * i, z: floorOf(mob) });
+    tiles = tiles.filter(
+      (p) =>
+        walkable(p.x, p.y, p.z) &&
+        !isSafeZone(p) &&
+        lineOfSight(mob, p, (x, y) => walkable(x, y, p.z)) &&
+        (!MOB_DEFINITIONS[mob.id].boss || inBossRoom(p)),
+    );
+    creature.special = {
+      id: randomUUID(),
+      mobId: mob.id,
+      kind,
+      tiles,
+      z: floorOf(mob),
+      endsAt: time + (kind === 'slam' ? 1500 : shaman ? 1200 : 1000),
+    };
+    creature.nextSpecial = time + (shaman ? 3000 : mob.health < mob.maxHealth / 2 ? 4000 : 6000);
+  }
   async function tick(account) {
     const state = runtime(account),
       time = now(),
@@ -242,12 +367,14 @@ export function createMobService({ save, random = Math.random, now = Date.now })
     if (time - state.lastTick > 2000) {
       state.targetId = null;
       state.poisons.clear();
-      for (const [id, creature] of Object.entries(state.creatures))
-        Object.assign(creature, {
-          aggro: false,
-          nextMove: time + ORC_MOVE_INTERVAL_MS,
-          nextAttack: time + (MOB_DEFINITIONS[id].attackIntervalMs ?? ATTACK_INTERVAL_MS),
-        });
+      if (!multiplayer)
+        for (const [id, creature] of Object.entries(state.creatures))
+          Object.assign(creature, {
+            aggro: false,
+            special: null,
+            nextMove: time + ORC_MOVE_INTERVAL_MS,
+            nextAttack: time + (MOB_DEFINITIONS[id].attackIntervalMs ?? ATTACK_INTERVAL_MS),
+          });
     }
     state.lastTick = time;
     let changed = false,
@@ -260,11 +387,33 @@ export function createMobService({ save, random = Math.random, now = Date.now })
     for (const mob of getMobs(account)) {
       const creature = state.creatures[mob.id],
         definition = MOB_DEFINITIONS[mob.id];
+      if (multiplayer) {
+        const players = multiplayer.players();
+        const eligible = (p) =>
+          p.vitals.health > 0 &&
+          !isSafeZone(p.position) &&
+          sameFloor(p.position, mob) &&
+          (!definition.boss || inBossRoom(p.position));
+        let owner = players.find((p) => p.id === creature.targetPlayerId && eligible(p));
+        if (!owner) {
+          owner = players
+            .filter((p) => eligible(p) && distance(p.position, mob) <= 5)
+            .sort(
+              (a, b) =>
+                distance(a.position, mob) - distance(b.position, mob) || a.id.localeCompare(b.id),
+            )[0];
+          if (creature.targetPlayerId !== owner?.id) creature.special = null;
+          creature.targetPlayerId = owner?.id || null;
+        }
+        creature.aggro = !!owner;
+      }
       if (mob.health <= 0 && time >= mob.respawnAt) {
         // Se o spawn estiver ocupado, usa um quadrado livre ao redor.
         let spawn = definition.spawn;
         if (
-          distance(account.position, spawn) === 0 ||
+          (multiplayer
+            ? multiplayer.players().some((p) => distance(p.position, spawn) === 0)
+            : distance(account.position, spawn) === 0) ||
           getMobs(account).some(
             (other) => other.id !== mob.id && other.health > 0 && distance(other, spawn) === 0,
           )
@@ -280,22 +429,41 @@ export function createMobService({ save, random = Math.random, now = Date.now })
               .find(
                 (point) =>
                   walkable(point.x, point.y, floorOf(point)) &&
-                  distance(point, account.position) > 0 &&
+                  (multiplayer
+                    ? multiplayer.players().every((p) => distance(point, p.position) > 0)
+                    : distance(point, account.position) > 0) &&
                   !mobAt(account, point.x, point.y, floorOf(point)),
               ) || null;
         if (spawn) {
-          Object.assign(mob, spawn, { health: definition.maxHealth, respawnAt: 0 });
+          Object.assign(mob, spawn, { health: mobMaximum(account, definition), respawnAt: 0 });
           creature.aggro = false;
           changed = true;
         }
       }
       if (mob.health <= 0 || playerRespawned) continue;
-      if (isSafeZone(account.position)) {
+      if (
+        definition.boss &&
+        !inBossRoom(account.position) &&
+        (!multiplayer || !creature.targetPlayerId)
+      ) {
         creature.aggro = false;
+        creature.special = null;
+        creature.nextSpecial = time + 1000;
+        state.poisons.delete(mob.id);
+        if (state.targetId === mob.id) state.targetId = null;
+        if (distance(mob, definition.spawn) !== 0 || mob.health !== mob.maxHealth) {
+          Object.assign(mob, definition.spawn, { health: mob.maxHealth });
+          multiplayer?.onReset?.(mob);
+          changed = true;
+        }
+        continue;
+      }
+      if (isSafeZone(account.position)) {
+        if (!multiplayer) creature.aggro = false;
         state.targetId = null;
       }
       if (!sameFloor(account.position, mob)) {
-        creature.aggro = false;
+        if (!multiplayer) creature.aggro = false;
         state.poisons.delete(mob.id);
         if (state.targetId === mob.id) state.targetId = null;
         continue;
@@ -318,42 +486,119 @@ export function createMobService({ save, random = Math.random, now = Date.now })
         changed = true;
       }
       if (mob.health <= 0) continue;
-      if (!isSafeZone(account.position) && distance(account.position, mob) <= 5)
+      if (multiplayer && hitMob(account, state, mob, events)) changed = true;
+      if (multiplayer && creature.targetPlayerId && creature.targetPlayerId !== account.id)
+        continue;
+      if (!multiplayer && !isSafeZone(account.position) && distance(account.position, mob) <= 5)
         creature.aggro = true;
-      if (time >= creature.nextMove && distance(account.position, mob) > 1) {
-        creature.nextMove = time + ORC_MOVE_INTERVAL_MS;
-        const step = nextStep(
-          account,
-          mob,
-          creature.aggro ? account.position : definition.spawn,
-          creature.aggro,
-        );
+      if (creature.special && time >= creature.special.endsAt) {
+        const special = creature.special;
+        creature.special = null;
+        const victims = multiplayer ? multiplayer.players() : [account];
+        for (const victim of victims)
+          if (
+            special.tiles.some((p) => distance(p, victim.position) === 0) &&
+            !isSafeZone(victim.position)
+          ) {
+            hurtPlayer(
+              victim,
+              mob,
+              roll(definition.boss ? 12 : 3, definition.boss ? 18 : 6),
+              events,
+              { element: definition.boss ? undefined : 'fire' },
+            );
+            if (!victim.vitals.health) {
+              resetEncounter(victim, runtime(victim), events);
+              if (victim === account) playerRespawned = true;
+            }
+          }
+        if (special.kind === 'charge') {
+          const landing = [...special.tiles]
+            .reverse()
+            .find(
+              (p) =>
+                (multiplayer
+                  ? multiplayer.players().every((v) => distance(p, v.position) > 0)
+                  : distance(p, account.position) > 0) && !mobAt(account, p.x, p.y, p.z),
+            );
+          if (landing) Object.assign(mob, landing);
+        }
+        changed = true;
+        if (playerRespawned) continue;
+        if (!account.vitals.health) {
+          resetEncounter(account, state, events);
+          playerRespawned = true;
+          continue;
+        }
+      }
+      if (
+        (definition.boss || mob.variant === 'shaman') &&
+        creature.aggro &&
+        !creature.special &&
+        time >= (creature.nextSpecial || 0) &&
+        visibleFrom(account, mob)
+      ) {
+        prepareSpecial(account, mob, creature, time);
+        changed = true;
+      }
+      if (!creature.special && time >= creature.nextMove && distance(account.position, mob) > 1) {
+        creature.nextMove = time + (definition.moveIntervalMs || ORC_MOVE_INTERVAL_MS);
+        const step =
+          creature.aggro && definition.range && distance(account.position, mob) <= definition.range
+            ? null
+            : nextStep(
+                account,
+                mob,
+                creature.aggro ? account.position : definition.spawn,
+                creature.aggro,
+              );
         if (step) {
           Object.assign(mob, step);
           changed = true;
         }
       }
-      if (hitMob(account, state, mob, events)) changed = true;
+      if (
+        mob.variant === 'archer' &&
+        creature.aggro &&
+        distance(mob, account.position) <= 2 &&
+        time >= (creature.nextRetreat || 0)
+      ) {
+        creature.nextRetreat = time + ORC_MOVE_INTERVAL_MS;
+        const retreat = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ]
+          .map(([x, y]) => ({ x: mob.x + x, y: mob.y + y, z: floorOf(mob) }))
+          .filter(
+            (p) =>
+              walkable(p.x, p.y, p.z) &&
+              !isSafeZone(p) &&
+              !mobAt(account, p.x, p.y, p.z) &&
+              distance(p, account.position) > distance(mob, account.position),
+          )
+          .sort((a, b) => distance(b, account.position) - distance(a, account.position))[0];
+        if (retreat) {
+          Object.assign(mob, retreat);
+          changed = true;
+        }
+      }
+      if (!multiplayer && hitMob(account, state, mob, events)) changed = true;
       if (
         !isSafeZone(account.position) &&
         mob.health > 0 &&
-        distance(account.position, mob) <= 1 &&
+        mob.variant !== 'shaman' &&
+        distance(account.position, mob) <= (definition.range || 1) &&
+        visibleFrom(account, mob) &&
         time >= creature.nextAttack
       ) {
         const damage = roll(definition.damageMin || DAMAGE_MIN, definition.damageMax || DAMAGE_MAX);
         creature.nextAttack = time + (definition.attackIntervalMs ?? ATTACK_INTERVAL_MS);
-        account.vitals.health = Math.max(0, account.vitals.health - damage);
-        changed = true;
-        events.push({
-          type: mob.id === 'orc' ? 'orc-hit' : 'mob-hit',
-          mobId: mob.id,
-          mobName: mob.name,
-          damage,
+        hurtPlayer(account, mob, damage, events, {
           critical: damage === (definition.damageMax || DAMAGE_MAX),
-          x: account.position.x,
-          y: account.position.y,
-          z: floorOf(account.position),
         });
+        changed = true;
         if (!account.vitals.health) {
           resetEncounter(account, state, events);
           playerRespawned = true;
@@ -372,6 +617,7 @@ export function createMobService({ save, random = Math.random, now = Date.now })
   }
   return {
     tick,
+    view: (account) => snapshot(account),
     canMove(account, x, y, z = floorOf(account.position)) {
       const state = runtime(account);
       return now() >= state.respawnUntil && !mobAt(account, x, y, z);
@@ -380,8 +626,14 @@ export function createMobService({ save, random = Math.random, now = Date.now })
       const state = runtime(account);
       state.targetId = null;
       if (disengage) {
+        cancelRecall(account);
         state.poisons.clear();
-        for (const creature of Object.values(state.creatures)) creature.aggro = false;
+        for (const creature of Object.values(state.creatures)) {
+          if (multiplayer && creature.targetPlayerId !== account.id) continue;
+          if (multiplayer) creature.targetPlayerId = null;
+          creature.aggro = false;
+          creature.special = null;
+        }
       }
       account.worldRevision++;
       return snapshot(account);
@@ -410,7 +662,7 @@ export function createMobService({ save, random = Math.random, now = Date.now })
       account.worldRevision++;
       return tick(account);
     },
-    async cast(account, { key } = {}) {
+    async cast(account, { key, x, y, z } = {}) {
       const state = runtime(account),
         time = now(),
         ability =
@@ -429,8 +681,23 @@ export function createMobService({ save, random = Math.random, now = Date.now })
         return reject('Esta habilidade está em recarga.');
       if (account.vitals.mana < ability.mana) return reject('Mana insuficiente.');
       const target = getMobs(account).find((m) => m.id === state.targetId && m.health > 0);
+      const aimed =
+        key === 'e' && (x !== undefined || y !== undefined)
+          ? { x, y, z: z ?? floorOf(account.position) }
+          : target;
+      if (
+        key === 'e' &&
+        (!aimed ||
+          !Number.isInteger(aimed.x) ||
+          !Number.isInteger(aimed.y) ||
+          distance(account.position, aimed) > 3 ||
+          !walkable(aimed.x, aimed.y, floorOf(aimed)) ||
+          !visibleFrom(account, aimed))
+      )
+        return reject('Escolha uma área visível a até 3 quadrados no mesmo andar.');
       if (
         key !== 'r' &&
+        key !== 'e' &&
         (!target || distance(account.position, target) > 3 || !visibleFrom(account, target))
       )
         return reject('Selecione um inimigo visível a até 3 quadrados.');
@@ -459,7 +726,8 @@ export function createMobService({ save, random = Math.random, now = Date.now })
           fromY: account.position.y,
         });
       } else {
-        const center = key === 'r' ? { ...account.position } : { ...target };
+        const center =
+          key === 'r' ? { ...account.position } : key === 'e' ? { ...aimed } : { ...target };
         const victims = ability.size
           ? getMobs(account).filter(
               (m) =>
@@ -515,7 +783,8 @@ export function createMobService({ save, random = Math.random, now = Date.now })
     loot(account, { id }) {
       runtime(account);
       const corpse = getCorpses(account).find((corpse) => corpse.id === id);
-      if (!corpse) return snapshot(account, { message: 'Esse corpo não está mais aqui.' });
+      if (!corpse || (Number.isFinite(corpse.expiresAt) && now() >= corpse.expiresAt))
+        return snapshot(account, { message: 'Esse corpo não está mais aqui.' });
       if (distance(account.position, corpse) > 1)
         return snapshot(account, { message: 'Aproxime-se do corpo para abrir o loot.' });
       return snapshot(account, { loot: { ...corpse } });

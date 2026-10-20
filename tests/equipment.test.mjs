@@ -17,6 +17,7 @@ test('todos os modelos equipam no espaço correspondente e voltam à mochila sem
     assert.match(definition.icon, /xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
     const quantity = definition.stackable ? 25 : 1;
     const a = account([{ id, quantity }]);
+    a.skills.combat.xp = 1500;
     const result = await items.use(a, { slot: 0, itemId: id });
     assert.equal(result.transferred, true, id);
     assert.deepEqual(a.equipment[definition.equipmentSlot], { id, quantity });

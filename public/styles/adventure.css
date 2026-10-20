@@ -1,0 +1,180 @@
+#adventure-panel {
+  position: absolute;
+  inset: 8% auto auto 50%;
+  transform: translateX(-50%);
+  z-index: 24;
+  width: min(650px, calc(100% - 24px));
+  max-height: 80%;
+  overflow: auto;
+  padding: 20px;
+  background: #14231ff8;
+  border: 1px solid #b39c63;
+  box-shadow: 0 12px 50px #000a;
+  color: #d9d3b6;
+  font:
+    12px/1.65 Verdana,
+    sans-serif;
+}
+#adventure-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+#adventure-panel h2 {
+  margin: 4px 0 12px;
+  color: #f0dbad;
+  font:
+    24px Georgia,
+    serif;
+}
+#adventure-panel small {
+  color: #a6c4ad;
+}
+#adventure-panel nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+#adventure-panel button {
+  padding: 7px 10px;
+  border: 1px solid #7f865f;
+  background: #293c32;
+  color: #ecdfb9;
+  font:
+    11px Verdana,
+    sans-serif;
+  cursor: pointer;
+}
+#adventure-panel button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+#adventure-panel button[aria-pressed='true'] {
+  background: #526345;
+  border-color: #d6bd7b;
+}
+#adventure-panel article {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid #78846555;
+  background: #24342b77;
+}
+#adventure-panel h3 {
+  margin: 2px 0 6px;
+  color: #e8d4a4;
+  font:
+    16px Georgia,
+    serif;
+}
+#adventure-panel p {
+  margin: 5px 0 10px;
+}
+.quest-reward {
+  color: #e2c47d;
+}
+.recipe-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.recipe-card > svg {
+  width: 35px;
+  height: 35px;
+  flex-shrink: 0;
+}
+.recipe-card > div {
+  flex: 1;
+}
+#adventure-message {
+  color: #a9e1b4;
+}
+#combat-summary {
+  margin: 9px 0 0;
+  color: #adbda6;
+  font:
+    9px/1.6 Verdana,
+    sans-serif;
+}
+.resource-handle {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: crosshair;
+}
+.resource-handle svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(2px 3px 1px #0007);
+  pointer-events: none;
+}
+.resource-handle.exhausted svg {
+  filter: grayscale(1) brightness(0.5);
+}
+#mining-status {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border: 1px solid #bc995a;
+  background: #14231fed;
+  color: #e9d0a0;
+  z-index: 10;
+  font:
+    11px Verdana,
+    sans-serif;
+  pointer-events: none;
+}
+.monster-warning {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 2px solid #ffb25a;
+  background: #eb463e66;
+  box-shadow: inset 0 0 15px #ffb33377;
+  animation: warning-pulse 0.35s alternate infinite;
+  pointer-events: none;
+}
+.monster-warning[data-kind='spell'] {
+  border-color: #d895ff;
+  background: #9a4be766;
+}
+#spell-aim {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: 2px solid #98edff;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 calc(var(--tile) - 1px),
+      #c4f5ff99 calc(var(--tile) - 1px) var(--tile)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      #68cce52a 0 calc(var(--tile) - 1px),
+      #c4f5ff99 calc(var(--tile) - 1px) var(--tile)
+    );
+  pointer-events: none;
+  box-shadow: 0 0 12px #61daf988;
+}
+#spell-aim.invalid {
+  border-color: #f36a56;
+  background: #e66a4b44;
+}
+@keyframes warning-pulse {
+  to {
+    opacity: 0.55;
+  }
+}
+.element-physical {
+  --element: #dcc694;
+}
+#skills-panel {
+  max-height: 80vh;
+  overflow-y: auto;
+}

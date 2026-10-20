@@ -6,17 +6,18 @@ export function createGroundItems({ onDragStart } = {}) {
   const elements = new Map();
   const layer = $('ground-item-layer');
   layer.addEventListener('dragstart', (event) => {
-    const item = event.target.closest('[data-ground-id]');
+    const item = event.target.closest('[data-ground-id], [data-corpse-id]');
     if (!item) return;
-    event.dataTransfer.setData(
-      'application/x-digla-item',
-      JSON.stringify({ source: 'ground', id: item.dataset.groundId }),
-    );
+    const payload = item.dataset.corpseId
+      ? { source: 'corpse', id: item.dataset.corpseId }
+      : { source: 'ground', id: item.dataset.groundId };
+    event.dataTransfer.setData('application/x-digla-item', JSON.stringify(payload));
     event.dataTransfer.effectAllowed = 'move';
-    onDragStart?.({ source: 'ground', id: item.dataset.groundId });
+    onDragStart?.(payload);
   });
   return {
-    update(items, renderer) {
+    update(items, renderer, corpses = []) {
+      items = [...corpses.map((c) => ({ ...c, isCorpse: true })), ...items];
       const ids = new Set(items.map((item) => item.id));
       for (const [id, element] of elements) {
         if (!ids.has(id)) {
@@ -30,7 +31,8 @@ export function createGroundItems({ onDragStart } = {}) {
         if (!element) {
           element = document.createElement('div');
           element.className = 'ground-item-handle';
-          element.dataset.groundId = item.id;
+          if (item.isCorpse) element.dataset.corpseId = item.id;
+          else element.dataset.groundId = item.id;
           element.draggable = true;
           element.setAttribute('role', 'img');
           elements.set(item.id, element);
@@ -40,9 +42,15 @@ export function createGroundItems({ onDragStart } = {}) {
         element.style.left = point.x + 'px';
         element.style.top = point.y + 'px';
         element.style.width = element.style.height = 22 * renderer.scale + 'px';
-        const label = `${ITEMS[item.itemId].name} × ${item.quantity} no chão`;
+        const label = item.isCorpse
+          ? `Corpo de ${item.name}`
+          : `${ITEMS[item.itemId].name} × ${item.quantity} no chão`;
         element.setAttribute('aria-label', label);
-        element.title = label + ' — arraste para mover; botão direito para recolher';
+        element.title =
+          label +
+          (item.isCorpse
+            ? ' — arraste para mover; botão direito para abrir'
+            : ' — arraste para mover; botão direito para recolher');
       }
     },
     clear() {

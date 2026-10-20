@@ -81,6 +81,13 @@ test('QWER funcionam no teclado com mana, recargas, veneno e áreas visíveis; R
   expect(events.some((e) => e.type === 'poison-applied')).toBe(true);
   await expect(page.locator('button[data-ability="e"]')).toBeEnabled();
   await page.keyboard.press('e');
+  await expect(page.locator('#spell-aim')).toBeVisible();
+  const box = await page.locator('#world').boundingBox(),
+    target = account.elementals.orc_captain;
+  await page.mouse.click(
+    box.x + box.width / 2 + (target.x - account.position.x) * 64,
+    box.y + box.height / 2 + (target.y - account.position.y) * 64,
+  );
   await expect(page.locator('.lightning-area-effect[data-ability="e"]')).toBeVisible();
   await expect(page.locator('#mana-value')).toHaveText('75 / 100');
   await expect(page.locator('button[data-ability="r"]')).toBeEnabled();

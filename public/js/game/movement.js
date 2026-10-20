@@ -10,12 +10,14 @@ export class Movement {
     this.target = { ...position };
     this.travel = null;
     this.lastStep = 0;
+    this.speedMultiplier = 1;
   }
 
   update(time, delta, key) {
+    const duration = STEP_DURATION_MS / this.speedMultiplier;
     if (this.travel) {
       const travel = this.travel;
-      travel.progress = Math.min(1, travel.progress + delta / STEP_DURATION_MS);
+      travel.progress = Math.min(1, travel.progress + delta / duration);
       this.player.x = travel.x + (this.target.x - travel.x) * travel.progress;
       this.player.y = travel.y + (this.target.y - travel.y) * travel.progress;
       this.player.step = travel.progress < 0.5 ? 1 : 2;
@@ -24,7 +26,7 @@ export class Movement {
     if (this.travel || !key) return false;
     const [dx, dy, direction] = MOVEMENT[key];
     this.player.direction = direction;
-    if (time - this.lastStep < STEP_DURATION_MS) return false;
+    if (time - this.lastStep < duration) return false;
     this.lastStep = time;
     if (!this.canWalk(this.target.x + dx, this.target.y + dy, floorOf(this.target))) return false;
     const transition = transitionAt(this.target.x + dx, this.target.y + dy, floorOf(this.target));

@@ -11,14 +11,15 @@ export function reply(res, status, data, headers = {}) {
 }
 
 export async function readJSON(req) {
-  let content = '';
+  const chunks = [];
+  let size = 0;
   for await (const chunk of req) {
-    content += chunk;
-    if (content.length > 4096)
-      throw Object.assign(new Error('Dados muito grandes.'), { status: 413 });
+    size += chunk.length;
+    if (size > 4096) throw Object.assign(new Error('Dados muito grandes.'), { status: 413 });
+    chunks.push(chunk);
   }
   try {
-    const data = JSON.parse(content);
+    const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error();
     return data;
   } catch {

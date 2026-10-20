@@ -38,15 +38,8 @@ for (const [id, element] of [
     account.elementals[id].health = 6;
     await expect.poll(() => account.elementals[id].health).toBe(0);
     await expect(label).toBeHidden();
-    const corpse = account.elementalCorpses[id],
-      box = await page.locator('#world').boundingBox();
-    await page.locator('#world').click({
-      button: 'right',
-      position: {
-        x: box.width / 2 + (corpse.x - account.position.x) * 64,
-        y: box.height / 2 + (corpse.y - account.position.y) * 64,
-      },
-    });
+    const corpse = account.elementalCorpses[id];
+    await page.locator(`[data-corpse-id="${corpse.id}"]`).click({ button: 'right' });
     await expect(page.locator('#loot-panel')).toBeVisible();
     await expect(page.locator('#loot-heading')).toContainText(definition.name);
     await page.locator('#loot-grid [data-item="gold_coin"]').click({ button: 'right' });

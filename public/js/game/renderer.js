@@ -7,6 +7,7 @@ import { makeProp, houseSprite } from '../graphics/scenery.js';
 import { drawAvatar } from '../graphics/character.js';
 import { drawStove } from '../graphics/stove.js';
 import { drawOrc, drawOrcCorpse } from '../graphics/orc.js';
+import { drawAdventureGround, decorateOrc } from '../graphics/adventure.js';
 import { drawGroundItem } from '../graphics/ground-items.js';
 import { drawTempleFloor, templeObjects, drawFountain } from '../graphics/temple.js';
 import { drawElemental, drawElementalCorpse } from '../graphics/elemental.js';
@@ -195,6 +196,7 @@ export class WorldRenderer {
       bottom: Math.ceil((cy + height) / TILE) + 3,
     };
     this.drawTerrain(time);
+    drawAdventureGround(ctx, this.camera, this.floor);
     if (this.floor === 0) drawTempleFloor(ctx, this.camera);
     for (const corpse of world.corpses || (world.corpse ? [world.corpse] : [])) {
       if (floorOf(corpse) !== this.floor) continue;
@@ -229,6 +231,26 @@ export class WorldRenderer {
       });
     }
     if (playerScreen) playerScreen.mobs = {};
+    for (const other of world.players || []) {
+      if (floorOf(other) !== this.floor) continue;
+      const x = Math.round(other.x * TILE + 16 - cx),
+        y = Math.round(other.y * TILE + 27 - cy);
+      objects.push({
+        depth: other.y * TILE + 27,
+        draw: () => {
+          ellipse(ctx, '#15201e77', x, y + 1, 9, 3);
+          drawAvatar(
+            ctx,
+            other.outfit,
+            other.direction || 'down',
+            x,
+            y,
+            1,
+            other.moving ? (Math.floor(time / 90) % 2) + 1 : 0,
+          );
+        },
+      });
+    }
     for (const orc of world.mobs || (world.orc ? [world.orc] : [])) {
       if (orc.health <= 0 || floorOf(orc) !== this.floor) continue;
       const x = Math.round(orc.x * TILE + 16 - cx),
@@ -246,7 +268,10 @@ export class WorldRenderer {
             );
           }
           if (orc.kind === 'fire' || orc.kind === 'water') drawElemental(ctx, orc, x, y, time);
-          else drawOrc(ctx, orc, x, y, time);
+          else {
+            drawOrc(ctx, orc, x, y, time);
+            decorateOrc(ctx, orc, x, y);
+          }
         },
       });
       if (playerScreen)

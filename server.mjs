@@ -1,15 +1,22 @@
-// Inicia o servidor local. Regras das contas estão em server/api.mjs.
+// Servidor multiplayer. Contas e mundo são salvos somente em data/ (ignorado no Git).
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { openAccountStore } from './server/storage.mjs';
+import { openMultiplayerStore } from './server/storage.mjs';
 import { createAccountApi } from './server/api.mjs';
 import { reply, servePublic } from './server/http.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const store = await openAccountStore(process.env.DIGLA_DATA_DIR || path.join(root, 'data'));
+const store = await openMultiplayerStore(process.env.DIGLA_DATA_DIR || path.join(root, 'data'));
 const handleApi = createAccountApi(store);
 const server = http.createServer(async (req, res) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+  );
   try {
     const url = new URL(req.url, 'http://localhost');
     if (url.pathname.startsWith('/api/')) await handleApi(req, res, url);
@@ -24,6 +31,8 @@ const server = http.createServer(async (req, res) => {
   }
 });
 const port = Number(process.env.PORT || 3000);
-server.listen(port, '127.0.0.1', () =>
+server.requestTimeout = 10000;
+server.headersTimeout = 10000;
+server.listen(port, process.env.HOST || '0.0.0.0', () =>
   console.log('Digla RPG disponível em http://localhost:' + server.address().port),
 );

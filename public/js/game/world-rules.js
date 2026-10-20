@@ -1,6 +1,7 @@
 import { WIDTH, HEIGHT } from '../config.js';
 import { syncVitals } from './vitality-rules.js';
 import { ITEMS } from '../items.js';
+import { ensureSettings, mobMaximum } from './adventure-rules.js';
 import {
   floorOf,
   sameFloor,
@@ -29,6 +30,7 @@ export function staffDamage(level) {
 export const ATTACK_INTERVAL_MS = 1000;
 export const ORC_MOVE_INTERVAL_MS = 500;
 export const ORC_RESPAWN_MS = 15000;
+export const CORPSE_LIFETIME_MS = 2 * 60000;
 export const WORLD_POLL_MS = 250;
 export const GROUND_CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 export const ELEMENTS = ['fire', 'water', 'lightning'];
@@ -38,6 +40,55 @@ export const distance = (a, b) =>
   sameFloor(a, b) ? Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) : Infinity;
 export const WEAKNESS_MULTIPLIER = 1.5;
 export const MOB_DEFINITIONS = {
+  orc_commander: {
+    name: 'Comandante Presa de Pedra',
+    kind: 'orc',
+    variant: 'commander',
+    boss: true,
+    spawn: { x: 86, y: 16, z: -1 },
+    maxHealth: 4000,
+    weakness: 'lightning',
+    damageMin: 5,
+    damageMax: 8,
+    attackIntervalMs: 2000,
+    respawnMs: 60000,
+  },
+  orc_archer: {
+    name: 'Orc arqueiro',
+    kind: 'orc',
+    variant: 'archer',
+    spawn: { x: 83, y: 25, z: 0 },
+    maxHealth: 400,
+    weakness: 'lightning',
+    damageMin: 3,
+    damageMax: 6,
+    range: 5,
+    attackIntervalMs: 2000,
+  },
+  orc_shaman: {
+    name: 'Orc xamã',
+    kind: 'orc',
+    variant: 'shaman',
+    spawn: { x: 90, y: 23, z: 0 },
+    maxHealth: 400,
+    weakness: 'lightning',
+    damageMin: 3,
+    damageMax: 6,
+    range: 4,
+    attackIntervalMs: 3000,
+  },
+  orc_defender: {
+    name: 'Orc defensor',
+    kind: 'orc',
+    variant: 'defender',
+    spawn: { x: 88, y: 27, z: 0 },
+    maxHealth: 600,
+    weakness: 'lightning',
+    physicalReduction: 0.35,
+    moveIntervalMs: 800,
+    damageMin: 3,
+    damageMax: 6,
+  },
   orc_guard_west: {
     name: 'Orc sentinela',
     kind: 'orc',
@@ -188,7 +239,11 @@ export const getMobs = (account) =>
     (mob) => mob && (mob === account.orc || Object.hasOwn(MOB_DEFINITIONS, mob.id)),
   );
 export const getCorpses = (account) =>
-  [account.corpse, ...Object.values(account.elementalCorpses || {})].filter(Boolean);
+  [
+    account.corpse,
+    ...Object.values(account.elementalCorpses || {}),
+    ...(account.extraCorpses || []),
+  ].filter(Boolean);
 export const mobAt = (account, x, y, z = floorOf(account.position)) =>
   getMobs(account).find(
     (mob) => mob.health > 0 && mob.x === x && mob.y === y && floorOf(mob) === z,
@@ -196,6 +251,7 @@ export const mobAt = (account, x, y, z = floorOf(account.position)) =>
 
 // Novos campos são acrescentados sem apagar peixes, skills ou outfit de contas antigas.
 export function ensureWorld(account) {
+  ensureSettings(account);
   const migrateLayout = account.worldLayoutVersion !== WORLD_LAYOUT_VERSION;
   if (!Number.isSafeInteger(account.worldRevision)) account.worldRevision = 0;
   if (!Number.isSafeInteger(account.nextGroundCleanupAt)) account.nextGroundCleanupAt = 0;
@@ -219,6 +275,7 @@ export function ensureWorld(account) {
   for (const id of Object.keys(account.elementals))
     if (!Object.hasOwn(MOB_DEFINITIONS, id)) delete account.elementals[id];
   account.elementalCorpses ??= {};
+  if (!Array.isArray(account.extraCorpses)) account.extraCorpses = [];
   for (const [id, definition] of Object.entries(MOB_DEFINITIONS)) {
     let mob = id === 'orc' ? account.orc : account.elementals[id];
     if (!mob)
@@ -235,11 +292,9 @@ export function ensureWorld(account) {
         (mob.health <= definition.maxHealth / 10
           ? definition.maxHealth / 10
           : definition.maxHealth);
-      if (previousMax < definition.maxHealth)
-        mob.health = Math.min(
-          definition.maxHealth,
-          Math.ceil((mob.health * definition.maxHealth) / previousMax),
-        );
+      const maximum = mobMaximum(account, definition);
+      if (previousMax !== maximum)
+        mob.health = Math.min(maximum, Math.ceil((mob.health * maximum) / previousMax));
     }
     mob.z ??= floorOf(definition.spawn);
     if (migrateLayout || isSafeZone(mob))
@@ -248,7 +303,7 @@ export function ensureWorld(account) {
       id,
       name: definition.name,
       kind: definition.kind,
-      maxHealth: definition.maxHealth,
+      maxHealth: mobMaximum(account, definition),
       weakness: definition.weakness,
       variant: definition.variant || 'elemental',
     });

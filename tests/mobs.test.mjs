@@ -76,7 +76,7 @@ test('fraqueza dá +50% só à magia correta, com XP pelo dano real e crítico n
     const result = await createWorldService({ save: async () => {}, random: () => 0 }).attack(a, {
       mobId: id,
     });
-    assert.equal(result.events[0].damage, 3);
+    assert.equal(result.events[0].damage, 5);
     assert.equal(result.events[0].weakness, false);
   }
 });

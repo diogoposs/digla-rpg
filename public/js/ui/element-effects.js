@@ -1,6 +1,7 @@
 import { $ } from './dom.js';
 
 const SHAPES = {
+  physical: '<path d="M5 20h28V10l13 15-13 15V30H5Z"/>',
   fire: '<path d="M25 2c8 16-2 13 5 24 3-7 8-9 7-16 16 18 10 35-12 37C3 46 2 27 15 17c-2 12 5 12 4 18C29 23 16 19 25 2Z"/>',
   water:
     '<circle cx="25" cy="27" r="16" fill="none" stroke="currentColor" stroke-width="3"/><path d="M25 5c-6 9-13 15-13 23a13 13 0 0 0 26 0C38 20 31 14 25 5Z" opacity=".6"/><circle cx="7" cy="10" r="3"/><circle cx="44" cy="12" r="4"/>',

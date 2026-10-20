@@ -1,4 +1,5 @@
 import { ITEMS } from '../items.js';
+import { prices } from './adventure-rules.js';
 
 // Posições compartilhadas por mapa, minimapa, servidor e interação do mouse.
 export const BANK_CAPACITY = 48;
@@ -47,9 +48,10 @@ export function ensureTown(account) {
   return account;
 }
 
-export function shopStock(id) {
+export function shopStock(id, testMode = true) {
   return Object.entries(ITEMS)
     .filter(([itemId, item]) => {
+      if (item.shop === false) return false;
       if (item.category === 'currency' || ['gold_coin', 'silver_coin'].includes(itemId))
         return false;
       const food = item.category === 'food' || itemId.endsWith('_salmon');
@@ -57,7 +59,12 @@ export function shopStock(id) {
         ? food
         : id === 'potions'
           ? item.category === 'potion'
-          : id === 'gear' && item.category === 'equipment';
+          : id === 'gear' && ['equipment', 'material'].includes(item.category);
     })
-    .map(([id, item]) => ({ id, name: item.name, price: 1 }));
+    .map(([id, item]) => ({
+      id,
+      name: item.name,
+      price: prices(id, testMode).buy,
+      sellPrice: prices(id, testMode).sell,
+    }));
 }

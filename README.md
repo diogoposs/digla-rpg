@@ -1,12 +1,52 @@
 # Digla RPG
 
-**Início do projeto — protótipo em desenvolvimento, funcionando momentaneamente apenas em localhost.** Ainda não há servidor público ou versão online. As contas e os dados locais não acompanham este repositório; serão criados ao executar o jogo.
+**Protótipo multiplayer 2D — versão 1.0.** Vários jogadores compartilham o mesmo mundo em um servidor Node.js, sem banco de dados. As contas e os salvamentos são privados e não acompanham o repositório. Ainda não há hospedagem pública do jogo.
 
-Protótipo 2D local, sem serviços externos e sem dependências de execução. Requer Node.js 22 ou superior.
+Sem serviços externos ou dependências de execução. Requer Node.js 22 ou superior.
 
 Para entender e editar o projeto, veja o **[Guia do código](docs/GUIA-DO-CODIGO.md)**: estrutura das pastas, responsabilidade de cada arquivo e exemplos de alterações de velocidade, casas, chão, cores e sprites.
 
 ## Jogar
+
+### Multiplayer: iniciar e conectar
+
+Na pasta do projeto, execute `npm.cmd start` ou `npm.cmd run dev`. No computador que executa o servidor, abra **http://localhost:3000**. Outros computadores na mesma rede usam **`http://IP-DO-SERVIDOR:3000`**; consulte o IPv4 com `ipconfig` no servidor. O processo deve continuar aberto. O servidor escuta em `0.0.0.0` por padrão; para restringir ao próprio computador, defina `$env:HOST='127.0.0.1'` antes de iniciar. Nenhuma regra de firewall ou roteador é alterada pelo projeto.
+
+Cada pessoa cria uma conta própria. Para testar duas pessoas no mesmo computador, use navegadores diferentes ou uma janela anônima. Entrar novamente na mesma conta encerra a sessão anterior. São permitidos até **32 jogadores conectados**; esse é um limite configurado, não uma medição de capacidade.
+
+- **Mundo compartilhado:** posições, monstros, vida dos monstros, corpos, loot, itens no chão e cargas de mineração. Inventário, banco, equipamento, missões, mana e skills continuam pessoais. Não há PvP.
+- **Online:** botão na lateral com lista de jogadores, chat e convites para grupos de até cinco pessoas. Membros vivos no mesmo piso a até oito quadrados dividem o XP do dano sem multiplicá-lo. Participação em abates também conta para missões.
+- **Trocas:** fique ao lado, selecione a pessoa em Online e clique em Trocar. Os dois aceitam, oferecem itens/quantidades e confirmam a mesma revisão. Alterar uma oferta apaga as confirmações; afastamento, saída ou expiração cancelam sem transferir itens. Mochilas são validadas antes da transferência conjunta.
+- **Loot:** reservado por 60 segundos para quem causou mais dano e seu grupo próximo no momento da morte; depois libera para todos. O prazo do corpo continua sendo dois minutos.
+- **Servidor:** simula o mundo a cada 100 ms, mesmo sem pedidos de combate do cliente. O navegador consulta atualizações a cada 250 ms e interpola movimentos. O servidor verifica deslocamentos, alcance, recargas, inventários e ações concorrentes.
+- **Pausar:** interrompe os controles daquele jogador; o mundo compartilhado continua ativo. Uma sessão sem comunicação por dez segundos sai da lista online.
+
+Publicar este código no GitHub **não hospeda uma partida na Internet**. Esta versão permite jogar no servidor local e pela rede local. Hospedagem externa e HTTPS são uma etapa separada.
+
+### Aventura e progressão — versão 0.9
+
+Abra **Diário e profissões** na lateral. As abas reúnem missões, mineração/ferraria e a opção de modo de jogo.
+
+- **O mundo começa no modo normal.** Orc básico tem 30 HP e o comandante 400. Preços normais são próprios de cada item, com venda a aproximadamente 30% do preço de compra.
+- **Modo de teste global:** o dono do servidor pode definir `$env:DIGLA_TEST_MODE='1'` antes de iniciar para preços em 1 ouro e vida dos orcs 10×. Jogadores não podem alterar essa configuração pelo navegador. Para voltar ao normal, remova a variável e reinicie; o progresso é preservado.
+- **Equipamentos afetam o combate:** espada = 3–6 + ATK + 1 a cada dois níveis acima do primeiro em Combate. Mãos vazias continuam 3–6. ARM reduz dano físico pela fórmula `ARM / (ARM + 20)`; cinco peças ARM 1 reduzem 20%. Magias não são reduzidas pela armadura física. O Cajado de Raio mantém sua fórmula e os multiplicadores anteriores.
+- **Novos itens:** espada de ferro ATK 4, requer Combate 3; armadura reforçada ARM 2; lâmina do comandante ATK 6, requer Combate 5, exclusiva de chefe/missão; minério e barra de ferro. Requisitos aparecem no Olhar e são verificados ao equipar.
+- **Cinco missões:** converse com Rafhi, Pang e Matlo e escolha **Conversar sobre missões**. A sequência pede 5 salmões assados, depois 3, depois 5 orcs, 3 guerreiros e o comandante. Entregas e recompensas são únicas, persistidas e não consomem itens se faltar espaço para receber o prêmio.
+- **Comandante Presa de Pedra:** sala norte da caverna dos orcs, **(86,16), piso -1**. Entrada da caverna na superfície em **(94,26)**. Tem pancada frontal, golpe 3×3 e investida, sempre avisados no chão. Abaixo de 50% de HP usa especiais mais frequentemente. Ao sair da sala, o encontro reinicia. Reaparece em 60 segundos, deixa 40–80 moedas e tem 25% de chance de lâmina; a missão final garante uma lâmina independentemente do sorteio.
+- **Orc arqueiro:** recua quando o jogador chega perto e atira respeitando paredes. **Xamã:** marca uma área antes da magia. **Defensor:** anda mais lentamente e reduz dano físico em 35%; magia funciona melhor contra ele. Dragão e monstros de água mantêm seu limite de 1 de dano a cada 5 segundos.
+- **E com mira:** pressione E, escolha uma área 3×3 a até três quadrados e confirme com o esquerdo; Esc cancela. Confirmar não inicia caminhada. Mana e recarga só são gastas em um lançamento aceito pelo servidor.
+- **Mineração:** botão direito nos veios indicados por picaretas no minimapa; um veio fica em **(85,14), piso +1**, na montanha dos orcs. Cada extração dá um minério e 10 XP, começa em 2,5s e melhora com o nível. Cada veio tem cinco cargas e recupera 60s após esgotar. Movimento, dano ou desconexão interrompem.
+- **Ferraria:** botão direito na forja ao lado de Matlo, **(35,22), piso 0**. Duas unidades de minério viram uma barra; três barras fazem uma espada, duas um elmo e cinco uma armadura reforçada. A armadura exige Ferraria 2. A fabricação não falha aleatoriamente e só consome os materiais se puder entregar o resultado.
+
+Os valores de testes descritos abaixo dependem do modo global do servidor.
+
+### Atalhos rápidos e retorno ao templo
+
+- **1, 2 e 3:** usam a poção configurada no botão correspondente. **Botão direito no atalho** permite escolher vida ou mana; a configuração é salva por personagem. A poção precisa estar na mochila e não é consumida se o atributo já estiver cheio.
+- **H — Corrida:** custa **10 de mana**, aumenta a velocidade para **1,5× durante 5 segundos** e tem **10 segundos de recarga**, contados desde a ativação.
+- **B — Retorno ao templo:** prepara um portal por **10 segundos**. Caminhar ou receber qualquer dano cancela; pausar, sair ou perder a conexão também interrompe o preparo. Ao completar, leva ao spawn do templo e começa uma recarga de **10 minutos**. Cancelar não gasta a recarga.
+
+Esses atalhos estão disponíveis para todos os personagens. Q/W/E/R ficam em ícones de **36 px** na parte inferior, junto aos atalhos gerais. Os painéis de **pesca e culinária ficam centralizados** para não sobrepor as habilidades.
 
 ### Cenário e novos controles
 
@@ -42,7 +82,7 @@ Use **+ / −** ou a **roda do mouse** para dar zoom no mundo e no minimapa. O m
 
 ## Fortaleza, montanhas e cavernas
 
-Para testar as habilidades, a vida de todos os orcs está multiplicada por **10**: orc 300, sentinelas/muralha/caverna 400, guerreiro 500 e capitão 800. O dano deles continua igual.
+No modo de teste, a vida de todos os orcs é multiplicada por **10**: orc 300, sentinelas/muralha/caverna 400, guerreiro 500 e capitão 800. O dano deles continua igual.
 
 A barra Q/W/E/R usa ícones; passe o mouse para consultar nome, mana e recarga. Os efeitos incluem raios com ramificações, faíscas, tempestade e anéis de choque.
 
@@ -71,7 +111,7 @@ Aproxime-se do vendedor ou banco e clique com o **botão direito** para abrir o 
 - **Matlo — Equipamentos (36, 22):** dentro da casa a nordeste, vende espada, cajado, elmo, armadura, calça e botas de couro/ferro, escudos de madeira/ferro, colares e anéis de bronze/prata e flechas.
 - **Banco de Brumavale, ao sul do templo:** salão em **(31, 34)**, com quatro bancos em **(33, 36), (41, 36), (33, 39) e (41, 39)**. Todos abrem o mesmo depósito pessoal de **48 espaços**, separado da mochila e salvo por conta. Clique esquerdo no banco para se aproximar e abrir; botão direito abre somente se estiver próximo. Com o painel aberto, **clique esquerdo em um item da mochila para guardar a pilha inteira**, ou **em um item do depósito para retirar a pilha inteira**. Isso também funciona na mochila lateral.
 
-O salão tem portas ao norte e ao sul, com caminho de pedra até a entrada norte **(37, 34)**. A estrada principal em X: 29 fica livre ao lado do edifício. O centro tem piso comum, sem área ou placa de doação. Ainda é possível largar itens em qualquer tile caminhável, seguindo a limpeza normal de 15 minutos. O protótipo mantém um mundo separado por conta.
+O salão tem portas ao norte e ao sul, com caminho de pedra até a entrada norte **(37, 34)**. A estrada principal em X: 29 fica livre ao lado do edifício. O centro tem piso comum, sem área ou placa de doação. É possível largar itens em tiles caminháveis, seguindo a limpeza de 15 minutos. Itens no chão são compartilhados; os depósitos são pessoais.
 
 **Dário — Dados (38, 36)** fica dentro do banco, em seu próprio canto com tapete. Converse com o botão direito estando próximo, informe uma aposta em moedas douradas da mochila e escolha **baixo (1–3)** ou **alto (4–6)**. O servidor sorteia um dado de seis lados. Acertar paga **2× o valor apostado, incluindo a aposta**; errar perde a aposta. Exemplo: com 10 moedas, apostar 3 deixa **13 ao ganhar** ou **7 ao perder**. Ouro no banco e moedas cinzas não pagam apostas. Reabrir a conversa mostra o último resultado.
 
@@ -87,7 +127,7 @@ O minimapa mostra ícones de **pesca, templo, fogão, alimentos, equipamentos e 
 
 ## Limpeza do chão
 
-O mundo de cada conta tem um **ciclo persistente de 15 minutos**. Ao vencer, todos os itens soltos no chão desaparecem. Mover uma pilha não adia a limpeza. Mochila, equipamentos, banco e loot dentro de cadáveres são preservados. O servidor limpa também contas desconectadas e aplica ciclos vencidos quando é iniciado novamente.
+O mundo de cada conta tem um **ciclo persistente de 15 minutos** para os itens soltos no chão. Mover uma pilha não adia a limpeza. Mochila, equipamentos e banco são preservados. **Cadáveres têm prazo próprio: desaparecem 2 minutos após a morte, junto com o loot que ainda estiver dentro.** Podem ser arrastados entre quadrados transitáveis, exigindo aproximação à origem como os itens; mover não reinicia o prazo. O servidor limpa também contas desconectadas e aplica prazos vencidos quando é iniciado novamente.
 
 Para alterar o intervalo, edite `GROUND_CLEANUP_INTERVAL_MS` em `public/js/game/world-rules.js`. A data da próxima limpeza já salva continua valendo até vencer; o novo intervalo é usado nos próximos ciclos.
 
@@ -97,7 +137,7 @@ O **botão direito** ataca ou interage sem aproximar o jogador. Itens abrem seu 
 
 O templo tem **7 × 7 quadrados**, com o centro exato no spawn **(29, 27)**. É um pátio aberto **sem paredes**, com apenas quatro colunas nos cantos, mosaico de pedra e fonte alinhada ao centro em **(29, 25)**. Clique com o **botão direito na fonte** para recuperar **toda a vida e mana**, respeitando os máximos. A interação exige até um quadrado de distância; o servidor valida a restauração. O templo aparece em claro no minimapa e a fonte em turquesa.
 
-A lateral tem minimapa, vida vermelha, mana azul e espaços para espada, armadura, escudo, calça, botas, elmo, anel, mochila, colar e flechas. Clique com o **botão direito na mochila** para abrir/fechar seus **12 espaços**; o botão × também fecha o inventário. Pelo teclado, foque a mochila e use Enter ou Espaço. Os desenhos apagados são guias dos slots, sem itens equipados. Vida e mana começam em 100/100. A vida muda com combate e comida e fica salva; mana ainda não é consumida.
+A lateral tem minimapa, vida vermelha, mana azul e espaços para espada, armadura, escudo, calça, botas, elmo, anel, mochila, colar e flechas. Clique com o **botão direito na mochila** para abrir/fechar seus **12 espaços**; o botão × também fecha o inventário. Pelo teclado, foque a mochila e use Enter ou Espaço. Os desenhos apagados são guias dos slots, sem itens equipados. Vida e mana começam em 100/100. A vida muda com combate e comida e fica salva; mana é consumida pelas habilidades e pela corrida.
 
 ## Skills e pesca
 
@@ -135,9 +175,9 @@ Cru, assado e queimado são pilhas distintas na mochila, uma por tipo. O servido
 - **Arrastar da mochila para o mapa:** larga a pilha arrastada em um quadrado caminhável. Água, casas, obstáculos e o quadrado ocupado pelo orc vivo recusam a transferência. Os itens ficam visíveis no chão e não bloqueiam a caminhada.
 - **Arrastar um item que já está no chão:** precisa estar a até um quadrado da origem. Se estiver longe, o personagem começa a se aproximar no início do arrasto e conclui a transferência quando chega. É possível mover para outro quadrado caminhável ou para a mochila; peixes iguais empilham, armas ocupam espaços separados.
 - **Botão direito no item no chão:** recolhe a pilha quando você está a até um quadrado, inclusive diagonal, desde que haja espaço na mochila. Itens no chão são salvos por conta neste protótipo.
-- **Orc verde no castelo, em (86, 26):** tem **300 de vida**. Orc, mãos vazias e espada causam **3–6 de dano** por golpe, com intervalo de **1 segundo**. Clique com o **botão direito** no orc para selecionar o alvo; caminhe manualmente até o alcance da arma; repetir o clique interrompe seus ataques. **F** seleciona o inimigo mais próximo no mesmo andar, inclusive fora do alcance; repetir F mantém a seleção. O ataque continua selecionado enquanto você anda, mas os golpes só saem dentro do alcance. O orc persegue respeitando obstáculos e a zona protegida. Trocar de andar, morrer ou sair/pausar interrompe o encontro, sem golpes offline.
+- **Orc verde no castelo, em (86, 26):** tem **300 de vida**. Orc e mãos vazias causam **3–6 de dano**; espadas acrescentam ATK e bônus de Combate por golpe, com intervalo de **1 segundo**. Clique com o **botão direito** no orc para selecionar o alvo; caminhe manualmente até o alcance da arma; repetir o clique interrompe seus ataques. **F** seleciona o inimigo mais próximo no mesmo andar, inclusive fora do alcance; repetir F mantém a seleção. O ataque continua selecionado enquanto você anda, mas os golpes só saem dentro do alcance. O orc persegue respeitando obstáculos e a zona protegida. Trocar de andar, morrer ou sair/pausar interrompe o encontro, sem golpes offline.
 - **Números de dano:** sobem sobre quem recebeu o golpe, usando a cor do elemento quando há magia. O dano máximo da faixa atual ganha contorno e brilho amarelos; o destaque não adiciona dano.
-- **Corpo do orc:** fica deitado no local da morte. Clique com o **botão direito** ao lado do corpo para abrir o loot de **6 espaços**. Sempre contém **5–15 moedas douradas**, além da arma quando sorteada. A chance de arma vem de `ORC_DROP_CHANCE` em `public/js/game/world-rules.js` (atualmente `1`, ou 100%, conforme sua configuração); o segundo sorteio continua 50% espada e 50% cajado. Os sorteios acontecem uma vez na morte. Arraste itens para a mochila ou armas para o equipamento; o menu do item no loot permite recolher ou olhar. × ou **Esc** fecha; afastar-se também fecha. O corpo permanece após o respawn e é substituído na próxima morte do orc.
+- **Corpo do orc:** fica deitado no local da morte. Clique com o **botão direito** ao lado do corpo para abrir o loot de **6 espaços**. Sempre contém **5–15 moedas douradas**, além da arma quando sorteada. A chance de arma vem de `ORC_DROP_CHANCE` em `public/js/game/world-rules.js` (atualmente `1`, ou 100%, conforme sua configuração); o segundo sorteio continua 50% espada e 50% cajado. Os sorteios acontecem uma vez na morte. Arraste itens para a mochila ou armas para o equipamento; o menu do item no loot permite recolher ou olhar. × ou **Esc** fecha; afastar-se também fecha. O corpo permanece após o respawn por até **2 minutos desde a morte**. Mortes consecutivas podem deixar vários corpos simultaneamente, cada um com seu próprio loot e prazo.
 
 O orc reaparece **15 segundos** após ser derrotado. Se o jogador morrer, retorna ao spawn com vida cheia, sem perder itens ou XP.
 
@@ -172,12 +212,12 @@ Botão direito seleciona o mob clicado; repetir no mesmo mob para de atacar, e c
 
 O **Cajado de raio (ATK: 3)** é vendido pelo **Matlo por 1 moeda dourada**. Equipar no espaço de arma libera uma barra de habilidades. Seu ataque automático é de raio, alcança **3 quadrados** com linha de visão e usa **dano base = 3 + 5 × nível de Magia**, com intervalo de **3 segundos**. No nível 1, o dano base é 8; no nível 2, 13. O ataque automático não consome mana.
 
-| Tecla | Habilidade                                                     | Dano base                                                    | Mana | Recarga     |
-| ----- | -------------------------------------------------------------- | ------------------------------------------------------------ | ---- | ----------- |
-| Q     | Raio em alvo único, alcance 3                                  | 2× o dano base do cajado                                     | 5    | 2 segundos  |
-| W     | Veneno elétrico no alvo, alcance 3                             | 0,5× por pulso, 5 pulsos a cada 1 segundo                    | 10   | 6 segundos  |
-| E     | Tempestade em área 3×3 centrada no alvo selecionado, alcance 3 | 1,5× em cada monstro atingido                                | 10   | 4 segundos  |
-| R     | Onda de choque em área 5×5 centrada no personagem              | 5× em cada monstro atingido, mais cura de 25% da vida máxima | 40   | 15 segundos |
+| Tecla | Habilidade                                                         | Dano base                                                    | Mana | Recarga     |
+| ----- | ------------------------------------------------------------------ | ------------------------------------------------------------ | ---- | ----------- |
+| Q     | Raio em alvo único, alcance 3                                      | 2× o dano base do cajado                                     | 5    | 2 segundos  |
+| W     | Veneno elétrico no alvo, alcance 3                                 | 0,5× por pulso, 5 pulsos a cada 1 segundo                    | 10   | 6 segundos  |
+| E     | Tempestade em área 3×3 escolhida pelo mouse selecionado, alcance 3 | 1,5× em cada monstro atingido                                | 10   | 4 segundos  |
+| R     | Onda de choque em área 5×5 centrada no personagem                  | 5× em cada monstro atingido, mais cura de 25% da vida máxima | 40   | 15 segundos |
 
 Existe **intervalo mínimo de 0,5 segundo entre habilidades**, separado do ataque automático. Q/W/E exigem um alvo vivo, no mesmo andar, a até 3 quadrados e sem parede no caminho. R pode ser usado sem alvo. As áreas atingem apenas monstros, respeitam obstáculos e não causam dano ao próprio jogador. A cura nunca ultrapassa a vida máxima. O W começa após 1 segundo, mantém o dano calculado ao lançar e continua seus pulsos mesmo que o jogador saia do alcance; pausar, sair, mudar de andar ou morrer cancela os pulsos pendentes.
 
@@ -199,7 +239,11 @@ Moedas douradas e cinzas são itens empilháveis. O orc sempre deixa **5–15 do
 
 ## Contas e dados
 
-As contas, cores, posições, inventário, XP das skills, vida/mana, itens no chão e estado do orc são gravados em `data/accounts.json`, criado automaticamente. Contas antigas recebem os novos campos ao entrar e salvá-los. As senhas usam scrypt com salt individual; não são gravadas em texto puro. A sessão utiliza cookie HttpOnly. O servidor escuta apenas em `127.0.0.1`, sem publicação ou acesso pela rede. Sessões ficam em memória: depois de reiniciar o servidor, faça login novamente. Não há recuperação de senha nesta versão. Faça uma cópia de `data/` para guardar suas contas.
+Contas e mundo são gravados juntos em **`data/game.json`**, por escrita temporária e substituição do arquivo. Não há SQLite, PostgreSQL, MongoDB ou outro banco de dados. `DIGLA_DATA_DIR` permite escolher outra pasta privada. Use apenas **um processo servidor por pasta de dados**.
+
+Na primeira execução multiplayer, as contas de `data/accounts.json` são importadas com inventários, bancos e progresso; o arquivo original permanece como backup privado. É criado um mundo compartilhado inicial, substituindo os antigos mundos individuais. Não são somados os itens no chão nem os monstros de mundos antigos. Faça uma cópia de `data/` com o servidor parado antes de atualizar ou restaurar dados.
+
+Senhas usam scrypt e salt individual; não são salvas em texto puro nem enviadas a outros jogadores. Cookies são HttpOnly e SameSite=Strict. Sessões, chat, convites e negociações ficam em memória: reiniciar exige novo login e cancela trocas pendentes. Arquivos de dados, `.env`, dependências e resultados de testes são ignorados pelo Git. O HTTP entrega apenas os arquivos públicos permitidos. Não há recuperação de senha nesta versão.
 
 Sprites e cenários foram desenhados em código para este projeto. Os três visuais são interpretações próprias em pixel art inspiradas nos outfits clássicos de Tibia, sem arquivos de sprites extraídos do jogo. Cores e estilo podem ser refinados no próximo passo.
 
@@ -211,6 +255,6 @@ A vila usa calçamento de pedra e chão de pedregulhos. Os sprites têm contorno
 npm test
 ```
 
-Os testes usam um servidor e banco temporários separados e verificam cadastro, validação, senha, sessão, colisão, posição salva e persistência após reinício. Para mudar a porta, defina `PORT` antes de iniciar. `DIGLA_DATA_DIR` permite definir outra pasta para o banco.
+Os testes usam diretórios temporários separados. Incluem regras do jogo, concorrência, reserva de loot, grupos, trocas, validação de movimento e migração. `tests/multiplayer-http.test.mjs` executa o servidor de produção e verifica dois jogadores, simulação sem polling do atacante, bloqueio de arquivos privados e persistência após reinício. `tests/server.test.mjs` mantém os contratos individuais antigos por um servidor exclusivo de compatibilidade em `tests/helpers/legacy-server.mjs`; ele não é usado ao iniciar o jogo. Para mudar a porta, defina `PORT` antes de iniciar.
 
-Os testes visuais e de interação estão disponíveis com `npm run test:browser`, após instalar as dependências de desenvolvimento com `npm install` e o Chromium com `npx playwright install chromium`. Usam a porta 3001 e contas separadas em `test-results/`, sem alterar suas contas reais.
+Os testes visuais e de interação estão disponíveis com `npm.cmd run test:browser`, após instalar as dependências de desenvolvimento com `npm.cmd install` e o Chromium com `npx.cmd playwright install chromium`. Usam a porta 3001 e contas separadas em `test-results/`, sem alterar suas contas reais. O teste multiplayer abre dois contextos reais de navegador e verifica presença, movimento, chat, grupo e troca completa.

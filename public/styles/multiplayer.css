@@ -1,0 +1,165 @@
+.peer-label {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -100%);
+  color: #b1d8ff;
+  font:
+    bold 12px Verdana,
+    sans-serif;
+  text-shadow:
+    1px 1px #111,
+    -1px -1px #111;
+  white-space: nowrap;
+  pointer-events: none;
+  text-align: center;
+}
+.peer-label i {
+  display: block;
+  width: 45px;
+  height: 4px;
+  margin: 4px auto 0;
+  border: 1px solid #13291e;
+  background: #203329;
+}
+.peer-label b {
+  display: block;
+  height: 100%;
+  background: #68bc79;
+}
+#online-panel,
+#trade-panel {
+  position: absolute;
+  z-index: 26;
+  padding: 14px;
+  border: 1px solid #a08d60;
+  background: #152720f5;
+  box-shadow: 0 5px 25px #0009;
+  color: #d6dcc9;
+  font:
+    11px/1.6 Verdana,
+    sans-serif;
+}
+#online-panel {
+  left: 12px;
+  bottom: 115px;
+  width: min(350px, calc(100% - 24px));
+  max-height: 65%;
+  overflow: auto;
+}
+#trade-panel {
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(540px, calc(100% - 24px));
+  max-height: 72%;
+  overflow: auto;
+}
+#online-panel header,
+#trade-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+#online-panel button,
+#trade-panel button {
+  padding: 6px 8px;
+  border: 1px solid #8d956e;
+  background: #304637;
+  color: #f1dfb5;
+  cursor: pointer;
+  font:
+    10px Verdana,
+    sans-serif;
+}
+#online-panel button:disabled,
+#trade-panel button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.online-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+#online-target {
+  width: 100%;
+}
+#online-panel input,
+#online-panel select,
+#trade-panel input[type='number'] {
+  padding: 6px;
+  background: #0d1c16;
+  color: #e6e9d4;
+  border: 1px solid #687c5b;
+  min-width: 0;
+}
+#chat-messages {
+  list-style: none;
+  padding: 7px;
+  margin: 10px 0;
+  height: 145px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  background: #0d1813;
+}
+#chat-messages strong {
+  color: #a7ccdf;
+}
+#chat-form {
+  display: flex;
+  gap: 5px;
+}
+#chat-input {
+  flex: 1;
+}
+#online-message,
+#trade-message {
+  color: #e6cb87;
+}
+#trade-bag {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  max-height: 185px;
+  overflow: auto;
+  margin-bottom: 8px;
+}
+.trade-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px;
+  background: #31443366;
+}
+.trade-item svg {
+  width: 25px;
+  height: 25px;
+}
+.trade-item input[type='checkbox'] {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: #c6ab73;
+}
+.trade-item > span:first-of-type {
+  flex: 0 0 25px;
+}
+.trade-item > span:nth-last-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.trade-item input[type='number'] {
+  flex: 0 0 70px;
+  width: 70px;
+  height: 30px;
+  margin: 0;
+}
+#trade-offers {
+  margin: 12px 0;
+  padding: 7px;
+  border: 1px solid #84945c;
+}

@@ -1,48 +1,22 @@
 import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
-import { createCookingService } from '../server/cooking.mjs';
-import { ensureProgress, publicProgress } from '../public/js/game/progression.js';
 import { STOVE } from '../public/js/config.js';
+import { setup } from './helpers/world.mjs';
 
 test('F abre fogão, cozinha um ou todos e mostra assado/queimado com Culinária', async ({
   page,
 }) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  const register = await page.request.post('/api/register', {
-    data: {
-      username: `Chef ${Date.now().toString().slice(-8)}`,
-      password: 'aventura-123',
-      outfit: { type: 'citizen', head: 1, body: 10, legs: 15, feet: 15 },
-    },
-  });
-  const identity = await register.json();
-  const account = ensureProgress({
-    position: { x: STOVE.x - 1, y: STOVE.y },
-    inventory: [{ id: 'raw_salmon', quantity: 3 }],
-  });
   // Serviço de produção com sorteios determinísticos para verificar os dois resultados.
   const rolls = [0.99, 0, 0];
-  const service = createCookingService({ random: () => rolls.shift() ?? 0, save: async () => {} });
-  await page.route('**/api/session', (route) =>
-    route.fulfill({
-      json: { ...identity, position: { x: STOVE.x - 2, y: STOVE.y }, ...publicProgress(account) },
-    }),
+  const { account } = await setup(
+    page,
+    { x: STOVE.x - 2, y: STOVE.y },
+    100,
+    () => rolls.shift() ?? 0,
+    { inventory: [{ id: 'raw_salmon', quantity: 3 }], isolateMobs: [] },
   );
-  await page.route('**/api/cooking/*', async (route) => {
-    const action = route.request().url().split('/').at(-1),
-      data = route.request().postDataJSON();
-    const result =
-      action === 'open'
-        ? service.open(account)
-        : action === 'start'
-          ? service.start(account, data.recipe, data.quantity)
-          : action === 'tick'
-            ? await service.tick(account)
-            : service.stop(account);
-    await route.fulfill({ json: result });
-  });
-  await page.goto('/');
   await expect(page.locator('#game')).toBeVisible();
   await page.getByRole('button', { name: 'Skills e níveis' }).click();
   await expect(page.locator('#cooking-level')).toHaveText('1');

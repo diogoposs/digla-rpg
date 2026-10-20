@@ -17,6 +17,11 @@ import { lookItem, TERRAIN_NAMES, PROP_NAMES } from './look-rules.js';
 import { decorationAt, DECORATION_NAMES } from '../world/decorations.js';
 import { treeStyleAt } from '../world/vegetation.js';
 import { createLightningAbilities } from '../ui/lightning-abilities.js';
+import { createUtilityBar } from '../ui/utility-bar.js';
+import { createAdventure } from '../ui/adventure.js';
+import { ORE_NODES, FORGE } from './adventure-rules.js';
+import { lineOfSight } from './pathfinding.js';
+import { createMultiplayerUI } from '../ui/multiplayer.js';
 
 // Combate, comida e transferências de itens. Todas as alterações são validadas pelo servidor.
 export function createWorld({
@@ -24,6 +29,7 @@ export function createWorld({
   getRenderer,
   walkTo,
   cancelWalk,
+  stopMovement,
   onInteract,
   prepare,
   onProgress,
@@ -35,13 +41,96 @@ export function createWorld({
     effects = createElementEffects(),
     groundItems = createGroundItems({ onDragStart: approachItem }),
     loot = createLoot({ onTransfer: transfer, onDragStart: approachItem }),
-    townPanel = createTown({ onAction: (route, data) => action(route, data) }),
+    townPanel = createTown({
+      onAction: (route, data) => action(route, data),
+      onQuests: (id) => adventure.open('quests', id),
+    }),
     staffPanel = createStaff({
       onElement: (element) => action('items/element', { element }),
       onTransfer: transfer,
     });
   const surface = $('world').parentElement;
-  const abilities = createLightningAbilities({ onCast: (key) => action('world/cast', { key }) });
+  const abilities = createLightningAbilities({
+    onCast: (key) => (key === 'e' ? startAim() : action('world/cast', { key })),
+  });
+  const adventure = createAdventure({
+    onAction: (data) => action('world/adventure', data),
+    onApproach: (p) => walkTo(p, 1),
+    getPosition,
+    onOpen: () => {
+      cancelWalk();
+      townPanel.close();
+    },
+  });
+  const onlineUI = createMultiplayerUI({
+    onAction: async (data) => {
+      try {
+        const result = await api('social', data);
+        handle(result);
+        return result;
+      } catch (error) {
+        onlineUI.message(error.message);
+        failed(error);
+      }
+    },
+  });
+  let playerId = null;
+  const warningElements = new Map();
+  const aim = document.createElement('span');
+  aim.id = 'spell-aim';
+  aim.hidden = true;
+  $('effect-layer').append(aim);
+  let aiming = false,
+    aimPoint = null,
+    hazards = [];
+  function aimValid(p) {
+    return (
+      p &&
+      Number.isInteger(p.x) &&
+      distance(getPosition(), p) <= 3 &&
+      walkable(p.x, p.y, floorOf(p)) &&
+      !isSafeZone(p) &&
+      lineOfSight(getPosition(), p, (x, y) => walkable(x, y, floorOf(p)))
+    );
+  }
+  function startAim() {
+    if (state.equipment?.weapon?.id !== 'lightning_staff')
+      return action('world/cast', { key: 'e' });
+    aiming = true;
+    aimPoint = state.mobs.find((m) => m.targeted) || getPosition();
+    notify('Tempestade: escolha a área com o mouse e confirme com esquerdo. Esc cancela.');
+  }
+  surface.addEventListener('pointermove', (event) => {
+    if (aiming) aimPoint = tile(event);
+  });
+  surface.addEventListener(
+    'click',
+    (event) => {
+      if (
+        !aiming ||
+        event.target.closest(
+          '#adventure-panel, #town-panel, #action-bars, #world-zoom, #online-panel, #trade-panel',
+        )
+      )
+        return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const p = tile(event);
+      if (!aimValid(p)) {
+        notify('Escolha uma área livre e visível a até 3 quadrados.');
+        return;
+      }
+      aiming = false;
+      aim.hidden = true;
+      void action('world/cast', { key: 'e', ...p });
+    },
+    true,
+  );
+  const utilityBar = createUtilityBar({ onUse: utility });
+  function utility(payload) {
+    if (payload.key === 'b') stopMovement?.();
+    return action('world/utility', payload);
+  }
   let running = false,
     timer,
     version = 0,
@@ -60,7 +149,7 @@ export function createWorld({
       if (
         !surface.contains(event.target) ||
         event.target.closest(
-          '#loot-panel, #town-panel, #staff-panel, #cooking-panel, #world-zoom, #lightning-abilities',
+          '#loot-panel, #town-panel, #staff-panel, #cooking-panel, #world-zoom, #action-bars, #recall-panel, #adventure-panel, #online-panel, #trade-panel',
         )
       )
         return null;
@@ -71,6 +160,9 @@ export function createWorld({
           (item) => item.id === event.target.closest('[data-ground-id]')?.dataset.groundId,
         ) || groundAt(point);
       if (ground) return lookItem(ground.itemId, ground.quantity);
+      const resource = [...ORE_NODES, FORGE].find((n) => distance(n, point) === 0);
+      if (resource)
+        return `You see ${resource === FORGE ? 'a forge. Use it to smelt iron and craft equipment.' : 'an iron vein. Mine it to obtain iron ore.'}`;
       const mob = state.mobs.find(
         (mob) =>
           mob.health > 0 &&
@@ -133,12 +225,17 @@ export function createWorld({
     onProgress(result);
     if (result.loot) loot.open(result.loot);
     if (result.message) notify(result.message);
-    if (result.playerRespawned) onRespawn(result.position);
+    if (result.playerRespawned || result.teleported) onRespawn(result.position);
     const messages = [];
     for (const event of result.events || []) {
       if (event.damage && !sameFloor(event, getPosition())) continue;
       damageNumbers.add(event);
       effects.add(event);
+      if (
+        (event.attackerId && event.attackerId !== playerId) ||
+        (event.victimId && event.victimId !== playerId)
+      )
+        continue;
       if (event.type === 'player-hit')
         messages.push(
           `Você acertou ${event.damage} de dano em ${event.mobName || 'Orc'}.${event.weakness ? ' Fraqueza elemental!' : ''}`,
@@ -151,6 +248,8 @@ export function createWorld({
         messages.push('Você foi derrotado e retornou ao spawn com vida cheia.');
       if (event.type === 'ground-cleanup')
         messages.push(`Limpeza do mundo: ${event.count} pilhas removidas do chão.`);
+      if (event.type === 'recall-cancelled')
+        messages.push('Retorno ao templo cancelado ao receber dano.');
     }
     if (messages.length) notify(messages.join(' '));
   }
@@ -197,11 +296,13 @@ export function createWorld({
     return getRenderer()?.screenToTile(event.clientX, event.clientY);
   }
   function sourcePoint(payload) {
-    return payload.source === 'ground'
-      ? state.groundItems.find((item) => item.id === payload.id)
-      : payload.source === 'loot'
-        ? state.corpses.find((corpse) => corpse.id === payload.corpseId)
-        : null;
+    return payload.source === 'corpse'
+      ? state.corpses.find((c) => c.id === payload.id)
+      : payload.source === 'ground'
+        ? state.groundItems.find((item) => item.id === payload.id)
+        : payload.source === 'loot'
+          ? state.corpses.find((corpse) => corpse.id === payload.corpseId)
+          : null;
   }
   function approachItem(payload) {
     const point = sourcePoint(payload);
@@ -253,6 +354,8 @@ export function createWorld({
   function canWalk(x, y, z = floorOf(getPosition())) {
     return (
       walkable(x, y, z) &&
+      (isSafeZone({ x, y, z }) ||
+        !(state.players || []).some((p) => p.x === x && p.y === y && floorOf(p) === z)) &&
       !state.mobs.some((mob) => mob.health > 0 && mob.x === x && mob.y === y && floorOf(mob) === z)
     );
   }
@@ -261,7 +364,7 @@ export function createWorld({
       return;
     if (
       event.target.closest(
-        '#loot-panel, #cooking-panel, #staff-panel, #town-panel, #world-zoom, #lightning-abilities',
+        '#loot-panel, #cooking-panel, #staff-panel, #town-panel, #world-zoom, #action-bars, #recall-panel, #adventure-panel, #online-panel, #trade-panel',
       )
     ) {
       dropPreview = null;
@@ -284,7 +387,7 @@ export function createWorld({
     dropPreview = null;
     if (
       event.target.closest(
-        '#loot-panel, #cooking-panel, #staff-panel, #town-panel, #world-zoom, #lightning-abilities',
+        '#loot-panel, #cooking-panel, #staff-panel, #town-panel, #world-zoom, #action-bars, #recall-panel, #adventure-panel, #online-panel, #trade-panel',
       )
     )
       return;
@@ -309,7 +412,7 @@ export function createWorld({
     if (!running) return;
     if (
       event.target.closest(
-        '#loot-panel, #cooking-panel, #staff-panel, #town-panel, #world-zoom, #lightning-abilities',
+        '#loot-panel, #cooking-panel, #staff-panel, #town-panel, #world-zoom, #action-bars, #recall-panel, #adventure-panel, #online-panel, #trade-panel',
       )
     )
       return;
@@ -404,6 +507,9 @@ export function createWorld({
   });
   return {
     changeFloor() {
+      aiming = false;
+      aim.hidden = true;
+      adventure.close();
       inspection.clear();
       damageNumbers.clear();
       effects.clear();
@@ -426,8 +532,9 @@ export function createWorld({
       return action('world/attack', { nearest: true, toggle: false });
     },
     cast(key) {
-      return action('world/cast', { key });
+      return key === 'e' ? startAim() : action('world/cast', { key });
     },
+    utility,
     use(payload) {
       return action('items/use', payload);
     },
@@ -445,7 +552,35 @@ export function createWorld({
       if (data.worldRevision !== undefined && data.worldRevision < revision) return;
       if (data.worldRevision !== undefined) revision = data.worldRevision;
       abilities.sync(data);
-      if (!running) abilities.hide();
+      utilityBar.sync(data);
+      adventure.sync(data);
+      if (data.playerId) playerId = data.playerId;
+      onlineUI.sync(data);
+      if (data.players) {
+        state.players = data.players.map((p) => {
+          const old = (state.players || []).find((o) => o.id === p.id),
+            key = 'peer:' + p.id;
+          if (
+            old &&
+            sameFloor(old, p) &&
+            Math.max(Math.abs(old.x - p.x), Math.abs(old.y - p.y)) <= 1 &&
+            (old.x !== p.x || old.y !== p.y)
+          )
+            transitions.set(key, { from: { ...old }, started: performance.now() });
+          else if (
+            !old ||
+            !sameFloor(old, p) ||
+            Math.max(Math.abs(old.x - p.x), Math.abs(old.y - p.y)) > 1
+          )
+            transitions.delete(key);
+          return p;
+        });
+      }
+      if (data.hazards) hazards = data.hazards;
+      if (!running) {
+        abilities.hide();
+        onlineUI.hide();
+      }
       if (data.mobs || data.orc) {
         const updates = (data.mobs || [data.orc]).filter((mob) => !isSafeZone(mob));
         state.mobs = updates.map((mob) => {
@@ -498,6 +633,19 @@ export function createWorld({
         };
       });
       return {
+        players: (state.players || [])
+          .filter((p) => sameFloor(p, getPosition()))
+          .map((p) => {
+            const t = transitions.get('peer:' + p.id);
+            if (!t) return p;
+            const progress = Math.min(1, (time - t.started) / 180);
+            return {
+              ...p,
+              x: t.from.x + (p.x - t.from.x) * progress,
+              y: t.from.y + (p.y - t.from.y) * progress,
+              moving: progress < 1,
+            };
+          }),
         mobs: mobs.filter((mob) => sameFloor(mob, getPosition())),
         corpses: state.corpses.filter((item) => sameFloor(item, getPosition())),
         groundItems: state.groundItems.filter((item) => sameFloor(item, getPosition())),
@@ -510,9 +658,47 @@ export function createWorld({
       if (renderer && running) {
         damageNumbers.update(renderer, performance.now());
         effects.update(renderer, performance.now());
+        utilityBar.position(renderer, getPosition());
+        adventure.position(renderer, true);
+        onlineUI.position(this.scene(performance.now()).players, renderer);
+        aim.hidden = !aiming;
+        if (aiming && aimPoint) {
+          const p = renderer.worldToScreen(aimPoint.x, aimPoint.y),
+            size = 32 * renderer.scale;
+          aim.style.left = p.x + 'px';
+          aim.style.top = p.y + 'px';
+          aim.style.width = aim.style.height = 3 * size + 'px';
+          aim.style.setProperty('--tile', size + 'px');
+          aim.classList.toggle('invalid', !aimValid(aimPoint));
+        }
+        const wanted = new Set();
+        for (const hazard of hazards)
+          for (const [i, point] of hazard.tiles.entries()) {
+            if (!sameFloor(point, getPosition())) continue;
+            const id = hazard.id + ':' + i;
+            wanted.add(id);
+            let el = warningElements.get(id);
+            if (!el) {
+              el = document.createElement('span');
+              el.className = 'monster-warning';
+              el.dataset.kind = hazard.kind;
+              $('effect-layer').append(el);
+              warningElements.set(id, el);
+            }
+            const p = renderer.worldToScreen(point.x, point.y);
+            el.style.left = p.x + 'px';
+            el.style.top = p.y + 'px';
+            el.style.width = el.style.height = 32 * renderer.scale + 'px';
+          }
+        for (const [id, el] of warningElements)
+          if (!wanted.has(id)) {
+            el.remove();
+            warningElements.delete(id);
+          }
         groundItems.update(
           state.groundItems.filter((item) => sameFloor(item, getPosition())),
           renderer,
+          state.corpses.filter((c) => sameFloor(c, getPosition())),
         );
         loot.sync(state.corpses, getPosition());
         if (activeTown && distance(getPosition(), activeTown) > 1) {
@@ -535,10 +721,19 @@ export function createWorld({
       groundItems.clear();
       loot.close();
       running = true;
+      utilityBar.show();
       this.accept(data);
       schedule(version);
     },
     pause() {
+      onlineUI.hide();
+      adventure.hide();
+      aiming = false;
+      aim.hidden = true;
+      hazards = [];
+      for (const el of warningElements.values()) el.remove();
+      warningElements.clear();
+      utilityBar.hide();
       abilities.hide();
       inspection.clear();
       townPanel.close();
@@ -557,6 +752,7 @@ export function createWorld({
     resume() {
       if (running) return;
       running = true;
+      utilityBar.show();
       const currentVersion = ++version;
       void api('session')
         .then((data) => {
@@ -566,6 +762,9 @@ export function createWorld({
       schedule(version);
     },
     stopAttack() {
+      aiming = false;
+      aim.hidden = true;
+      adventure.close();
       cancelWalk();
       townPanel.close();
       activeTown = null;
@@ -574,6 +773,15 @@ export function createWorld({
       return api('world/stop', {}).then(handle).catch(failed);
     },
     reset() {
+      onlineUI.hide();
+      playerId = null;
+      adventure.hide();
+      aiming = false;
+      aim.hidden = true;
+      hazards = [];
+      for (const el of warningElements.values()) el.remove();
+      warningElements.clear();
+      utilityBar.hide();
       abilities.hide();
       inspection.clear();
       townPanel.close();

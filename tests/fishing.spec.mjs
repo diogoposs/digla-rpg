@@ -1,9 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
-import { createFishingService } from '../server/fishing.mjs';
-import { ensureProgress } from '../public/js/game/progression.js';
 import { nearWater, salmonChance } from '../public/js/game/fishing-rules.js';
 import { walkable } from '../public/js/world/map.js';
+import { setup } from './helpers/world.mjs';
 
 test('F na margem, bônus verde, captura, mochila, XP e cancelamento', async ({ page }) => {
   const errors = [];
@@ -32,31 +31,16 @@ test('F na margem, bônus verde, captura, mochila, XP e cancelamento', async ({ 
         break;
       }
   await page.getByRole('button', { name: 'Sair do mundo' }).click();
-  await page.request.post('/api/login', { data: { username, password: 'aventura-123' } });
-  expect((await page.request.post('/api/position', { data: shore })).status()).toBe(200);
-  await page.reload();
-  await expect(page.locator('#game')).toBeVisible();
 
   // Usa RNG entre a chance normal e a dobrada: falha sem bônus e captura ao acertar.
   // Persistência real em arquivo é verificada no teste de servidor, sem alterar contas de jogo.
-  const account = ensureProgress({ position: shore });
-  const service = createFishingService({
-    random: () => (salmonChance(1) + salmonChance(1, true)) / 2,
-    save: async () => {},
-  });
-  await page.route('**/api/fishing/*', async (route) => {
-    const action = route.request().url().split('/').at(-1);
-    const data = route.request().postDataJSON();
-    const result =
-      action === 'start'
-        ? service.start(account)
-        : action === 'press'
-          ? service.press(account, data.challengeId)
-          : action === 'tick'
-            ? await service.tick(account)
-            : service.stop(account);
-    await route.fulfill({ json: result });
-  });
+  const { account } = await setup(
+    page,
+    shore,
+    100,
+    () => (salmonChance(1) + salmonChance(1, true)) / 2,
+    { inventory: [], isolateMobs: [] },
+  );
   await page.getByRole('button', { name: 'Skills e níveis' }).click();
   await page
     .getByRole('button', { name: 'Mochila — botão direito para abrir', exact: true })

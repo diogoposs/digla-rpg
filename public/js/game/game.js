@@ -46,6 +46,8 @@ export function createGame({ onExit }) {
       skills.render(account.skills);
     }
     if (data.worldRevision === undefined || data.worldRevision >= (account.worldRevision || 0)) {
+      if (data.utility) account.utility = data.utility;
+      if (data.serverNow !== undefined) account.serverOffset = data.serverNow - Date.now();
       if (data.vitals) {
         account.vitals = data.vitals;
         inventory.renderVitals(data.vitals);
@@ -76,6 +78,11 @@ export function createGame({ onExit }) {
     getRenderer: () => renderer,
     walkTo: (target, range) => navigation.goTo(target, range),
     cancelWalk: () => navigation.cancel(),
+    stopMovement: () => {
+      navigation.cancel();
+      input.clear();
+      movement.finishStep();
+    },
     onInteract: (kind) => actions.interact(kind),
     prepare: async () => {
       await cooking.close();
@@ -250,9 +257,11 @@ export function createGame({ onExit }) {
     if (key === lastSaved) return true;
     saving = (async () => {
       try {
-        await api('position', position);
+        const result = await api('position', position);
+        applyProgress(result);
+        if (result.message) $('fishing-message').textContent = result.message;
         lastSaved = key;
-        setSaveStatus('Seu progresso está salvo neste computador.');
+        setSaveStatus('Seu progresso está salvo no servidor.');
         return true;
       } catch (error) {
         if (error.status === 409 && error.data?.position) {
@@ -352,6 +361,8 @@ export function createGame({ onExit }) {
     update(time, delta) {
       if (!account) return;
       const manual = input.key;
+      movement.speedMultiplier =
+        Date.now() + (account.serverOffset || 0) < (account.utility?.hasteUntil || 0) ? 1.5 : 1;
       const previousFloor = floorOf(movement.target);
       if (manual) navigation.cancel();
       if (movement.update(time, delta, manual || navigation.key())) {

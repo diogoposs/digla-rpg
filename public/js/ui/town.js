@@ -2,7 +2,7 @@ import { ITEMS } from '../items.js';
 import { BANK_CAPACITY, TOWN_POINTS } from '../game/town-rules.js';
 
 // Painel comum aos vendedores e ao banco. Regras e validação pertencem ao servidor.
-export function createTown({ onAction }) {
+export function createTown({ onAction, onQuests }) {
   const labels = Object.values(TOWN_POINTS)
     .filter((point) => point.kind === 'shop' || point.kind === 'dice')
     .map((point) => {
@@ -42,6 +42,16 @@ export function createTown({ onAction }) {
     </div><p id="town-message" class="town-message" role="status" aria-live="polite"></p>`;
   document.querySelector('.world-frame').append(panel);
   const $ = (id) => panel.querySelector('#town-' + id);
+  const quests = document.createElement('button');
+  quests.id = 'town-quests';
+  quests.className = 'skills-button';
+  quests.textContent = 'Conversar sobre missões';
+  $('description').after(quests);
+  quests.onclick = () => {
+    const id = state?.id;
+    close();
+    onQuests?.(id);
+  };
   let state = null,
     busy = false,
     version = 0;
@@ -73,10 +83,11 @@ export function createTown({ onAction }) {
     if (lastSelection === 'bag') return state?.inventory?.[bagSlot]?.quantity || 1;
     if (lastSelection === 'bank') return state?.bank?.[bankSlot]?.quantity || 1;
     const item = ITEMS[stockItem];
+    const price = state?.stock?.find((i) => i.id === stockItem)?.price || 1;
     const emptySlots = (state?.inventory || []).filter((entry) => !entry).length;
     return item?.stackable === false
-      ? Math.max(1, Math.min(gold(), emptySlots))
-      : Math.max(1, gold());
+      ? Math.max(1, Math.min(Math.floor(gold() / price), emptySlots))
+      : Math.max(1, Math.floor(gold() / price));
   }
   function select(source, value) {
     lastSelection = source;
@@ -179,7 +190,10 @@ export function createTown({ onAction }) {
       ? 'Escolha o lado do dado e faça sua aposta com ouro do jogo.'
       : isBank
         ? 'Clique esquerdo: guarda ou retira a pilha inteira. Botão direito: ações e Olhar.'
-        : 'Todos os itens custam 1 moeda dourada; venda pelo mesmo valor.';
+        : state.testMode
+          ? 'Modo de teste: compra e venda por 1 ouro.'
+          : 'Preços de progressão. Venda por 30% do valor de compra.';
+    quests.hidden = isBank || isDice;
     $('storage-title').textContent = isBank ? 'Seu depósito' : 'À venda';
     $('storage-count').textContent = isBank
       ? `${(state.bank || []).filter(Boolean).length} / ${BANK_CAPACITY}`
@@ -210,7 +224,11 @@ export function createTown({ onAction }) {
       valid = Number.isSafeInteger(qty) && qty > 0;
     const bagItem = state.inventory?.[bagSlot],
       storedItem = state.bank?.[bankSlot];
-    $('buy').disabled = busy || !valid || !stockItem || gold() < qty;
+    const buying = state.stock?.find((i) => i.id === stockItem),
+      selling = state.stock?.find((i) => i.id === bagItem?.id);
+    $('buy').textContent = `Comprar · ${buying?.price || 1} ouro/un.`;
+    $('sell').textContent = `Vender · ${selling?.sellPrice || 1} ouro/un.`;
+    $('buy').disabled = busy || !valid || !stockItem || gold() < qty * (buying?.price || 1);
     $('sell').disabled =
       busy ||
       !valid ||

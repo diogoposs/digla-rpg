@@ -80,7 +80,7 @@ test('espada dá XP de Combate, mãos vazias não dão XP e cajado não atravess
   await service.transfer(a, { slot: 0, itemId: 'sword', target: 'equipment' });
   clock = 1000;
   await service.tick(a);
-  assert.equal(a.skills.combat.xp, 3);
+  assert.equal(a.skills.combat.xp, 4);
   await service.transfer(a, { slot: 1, itemId: 'staff', target: 'equipment' });
   a.position = { x: ORC_CASTLE.x - 1, y: ORC_CASTLE.y + 3 };
   Object.assign(a.orc, { x: ORC_CASTLE.x + 1, y: ORC_CASTLE.y + 3 });

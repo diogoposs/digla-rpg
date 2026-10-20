@@ -3,6 +3,7 @@ import { ensureProgress, publicProgress } from '../public/js/game/progression.js
 import { distance } from '../public/js/game/world-rules.js';
 import { TOWN_POINTS, ensureTown, shopStock } from '../public/js/game/town-rules.js';
 import { randomInt } from 'node:crypto';
+import { prices } from '../public/js/game/adventure-rules.js';
 
 const clone = (slots) => slots.map((item) => (item ? { ...item } : null));
 const count = (slots, id) =>
@@ -58,7 +59,8 @@ export function createTownService({ save, random }) {
         ? {
             ...point,
             available: distance(account.position, point) <= 1,
-            stock: point.kind === 'shop' ? shopStock(id) : [],
+            stock: point.kind === 'shop' ? shopStock(id, account.gameSettings.testMode) : [],
+            testMode: account.gameSettings.testMode,
             bank: account.bank,
             inventory: account.inventory,
             balance: count(account.inventory, 'gold_coin'),
@@ -125,10 +127,11 @@ export function createTownService({ save, random }) {
       if (!shopStock(id).some((item) => item.id === itemId))
         return response(account, id, 'Este vendedor não vende esse item.');
       if (!validQuantity(quantity)) return response(account, id, 'Quantidade inválida.');
-      if (count(account.inventory, 'gold_coin') < quantity)
+      const cost = prices(itemId, account.gameSettings.testMode).buy * quantity;
+      if (!Number.isSafeInteger(cost) || count(account.inventory, 'gold_coin') < cost)
         return response(account, id, 'Moedas douradas insuficientes na mochila.');
       const inventory = clone(account.inventory);
-      spendGold(inventory, quantity);
+      spendGold(inventory, cost);
       if (!add(inventory, itemId, quantity)) return response(account, id, 'A mochila está cheia.');
       return commit(account, id, `Comprou ${quantity} × ${ITEMS[itemId].name}.`, inventory);
     },
@@ -142,7 +145,8 @@ export function createTownService({ save, random }) {
         return response(account, id, 'Quantidade inválida.');
       const inventory = clone(account.inventory);
       remove(inventory, slot, quantity);
-      if (!add(inventory, 'gold_coin', quantity))
+      const payment = prices(itemId, account.gameSettings.testMode).sell * quantity;
+      if (!Number.isSafeInteger(payment) || !add(inventory, 'gold_coin', payment))
         return response(account, id, 'Libere um espaço para receber as moedas.');
       return commit(account, id, `Vendeu ${quantity} × ${ITEMS[itemId].name}.`, inventory);
     },

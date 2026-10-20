@@ -14,7 +14,6 @@ test('ciclo de 15 minutos remove só itens soltos e não é adiado ao movê-los'
     equipment: { helmet: { id: 'iron_helmet', quantity: 1 } },
     bank: [{ id: 'gold_coin', quantity: 50 }],
     groundItems: [{ id: 'fish', itemId: 'raw_salmon', quantity: 3, x: 28, y: 27 }],
-    corpse: { id: 'body', x: 29, y: 14, slots: [{ id: 'gold_coin', quantity: 7 }] },
   });
   const safe = JSON.stringify([account.inventory, account.equipment, account.bank, account.corpse]);
   const cleanup = createGroundCleanup({

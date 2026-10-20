@@ -9,7 +9,7 @@ export async function api(route, data) {
       body: data === undefined ? undefined : JSON.stringify(data),
     });
   } catch {
-    throw new Error('O servidor local está indisponível. Verifique se ele está aberto.');
+    throw new Error('O servidor está indisponível. Verifique a conexão e se ele está aberto.');
   }
   const result = await response.json();
   if (!response.ok) {

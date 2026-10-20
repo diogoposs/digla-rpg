@@ -22,7 +22,7 @@ export const LIGHTNING_ABILITIES = {
     cooldown: 4000,
     multiplier: 1.5,
     size: 3,
-    description: 'Área 3×3 centrada no alvo, alcance 3.',
+    description: 'Escolha uma área 3×3 com o mouse, alcance 3. Esquerdo confirma; Esc cancela.',
   },
   r: {
     name: 'Onda de choque',

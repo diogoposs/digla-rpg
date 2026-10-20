@@ -129,6 +129,46 @@ export const EQUIPMENT_SLOT_IDS = [
 ];
 
 export const ITEMS = {
+  iron_ore: {
+    name: 'Minério de ferro',
+    category: 'material',
+    price: 2,
+    icon: '<svg viewBox="0 0 32 32" class="salmon-icon" aria-hidden="true"><path fill="#4d5360" stroke="#a7bdcc" d="m3 23 3-13 13-6 10 12-4 12H7Z"/><path fill="#d4a676" d="m9 12 6-3 3 7-7 3Zm9 8 7-3-2 8h-6Z"/></svg>',
+  },
+  iron_bar: {
+    name: 'Barra de ferro',
+    category: 'material',
+    price: 6,
+    icon: '<svg viewBox="0 0 32 32" class="salmon-icon" aria-hidden="true"><path fill="#9aafbd" stroke="#d8edf4" d="m4 20 6-11h15l4 12-4 5H8Z"/><path fill="#4b6579" d="m4 20 21 1 4-1-4 6H8Z"/></svg>',
+  },
+  iron_sword: {
+    name: 'Espada de ferro',
+    category: 'equipment',
+    equipmentSlot: 'weapon',
+    weapon: true,
+    melee: true,
+    atk: 4,
+    range: 1,
+    stackable: false,
+    price: 100,
+    requires: { combat: 3 },
+    icon: '',
+  },
+  commander_blade: {
+    name: 'Lâmina do comandante',
+    category: 'equipment',
+    equipmentSlot: 'weapon',
+    weapon: true,
+    melee: true,
+    atk: 6,
+    range: 1,
+    stackable: false,
+    price: 250,
+    shop: false,
+    requires: { combat: 5 },
+    icon: '',
+  },
+  reinforced_armor: equipment('Armadura reforçada', 'armor', 'bronze', { arm: 2, price: 120 }),
   lightning_staff: {
     name: 'Cajado de raio',
     category: 'equipment',
@@ -237,3 +277,7 @@ export const ITEMS = {
   silver_ring: equipment('Anel de prata', 'ring', 'silver'),
   arrows: equipment('Flechas', 'arrows', 'wood', { stackable: true }),
 };
+ITEMS.iron_sword.icon = ITEMS.sword.icon.replaceAll('#bd964e', '#70b5dd');
+ITEMS.commander_blade.icon = ITEMS.sword.icon
+  .replaceAll('#9eafb5', '#ceab63')
+  .replaceAll('#deece4', '#fff3ba');

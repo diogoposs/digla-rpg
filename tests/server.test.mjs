@@ -15,7 +15,7 @@ test('contas, autenticação, colisão e persistência local', async () => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'digla-test-'));
   let child;
   async function start() {
-    child = spawn(process.execPath, ['server.mjs'], {
+    child = spawn(process.execPath, ['tests/helpers/legacy-server.mjs'], {
       cwd: new URL('..', import.meta.url),
       env: { ...process.env, PORT: '0', DIGLA_DATA_DIR: dataDir },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -98,7 +98,18 @@ test('contas, autenticação, colisão e persistência local', async () => {
     assert.equal((await request('session')).body.skills.fishing.level, 1);
     assert.equal((await request('session')).body.inventory.length, 12);
     assert.equal((await request('session')).body.skills.cooking.level, 1);
-    assert.equal((await request('world/tick', {})).body.orc.maxHealth, 300);
+    assert.equal((await request('world/tick', {})).body.orc.maxHealth, 30);
+    const sandbox = await request('world/adventure', { action: 'settings', enabled: true });
+    assert.equal(sandbox.body.gameSettings.testMode, true);
+    assert.equal(sandbox.body.orc.maxHealth, 300);
+    assert.equal(
+      (await request('world/adventure', { action: 'settings', enabled: false })).body.orc.maxHealth,
+      30,
+    );
+    assert.equal(
+      (await request('world/adventure', { action: 'accept', id: 'kitchen' })).body.quests.kitchen,
+      undefined,
+    );
     const initialMobs = (await request('session')).body.mobs;
     assert.equal(initialMobs.length, Object.keys(MOB_DEFINITIONS).length);
     assert.equal(initialMobs.find((mob) => mob.id === 'fire_elemental').health, 50);

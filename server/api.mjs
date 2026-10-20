@@ -8,23 +8,32 @@ import { createFishingService } from './fishing.mjs';
 import { createCookingService } from './cooking.mjs';
 import { createWorldService } from './world.mjs';
 import { createGroundCleanup } from './ground-cleanup.mjs';
+import { createMultiplayer } from './multiplayer.mjs';
 import { floorOf, validFloorMove, sameFloor } from '../public/js/world/elevation.js';
 const scrypt = promisify(scryptCallback);
 
 // Rotas de cadastro, login, sessão, posição e saída. Senhas usam scrypt + salt.
-export function createAccountApi({ accounts, save }) {
+export function createAccountApi({ accounts, save, sharedWorld }) {
   const sessions = new Map();
   const attempts = new Map();
   const fishing = createFishingService({ save });
   const cooking = createCookingService({ save });
-  const world = createWorldService({ save });
+  const multiplayer = sharedWorld
+    ? createMultiplayer({
+        accounts,
+        save,
+        sharedWorld,
+        testMode: process.env.DIGLA_TEST_MODE === '1',
+      })
+    : null;
+  const world = multiplayer?.world || createWorldService({ save });
   const cleanup = createGroundCleanup({ save });
   let sweeping = false;
   async function sweepGround() {
     if (sweeping) return;
     sweeping = true;
     try {
-      await cleanup.sweepAll(accounts);
+      if (!multiplayer) await cleanup.sweepAll(accounts);
     } catch (error) {
       console.error('Falha ao salvar a limpeza do mundo:', error.message);
     } finally {
@@ -35,7 +44,12 @@ export function createAccountApi({ accounts, save }) {
   setInterval(sweepGround, 1000).unref();
   function publicAccount(a) {
     if (!walkable(a.position?.x, a.position?.y, floorOf(a.position))) a.position = { ...SPAWN };
-    return { username: a.username, outfit: a.outfit, position: a.position, ...publicProgress(a) };
+    return {
+      username: a.username,
+      outfit: a.outfit,
+      position: a.position,
+      ...(multiplayer ? multiplayer.initial(a) : publicProgress(a)),
+    };
   }
   function auth(req) {
     const token = /(?:^|;\s*)digla_session=([a-f0-9]+)/.exec(req.headers.cookie || '')?.[1];
@@ -47,6 +61,9 @@ export function createAccountApi({ accounts, save }) {
     return { token, account: accounts[session.key] };
   }
   async function signIn(res, key, status = 200) {
+    multiplayer?.leave(accounts[key]);
+    multiplayer?.join(accounts[key]);
+    for (const [token, session] of sessions) if (session.key === key) sessions.delete(token);
     await cleanup.sweep(accounts[key]);
     const token = randomBytes(32).toString('hex');
     sessions.set(token, { key, expires: Date.now() + 7 * 86400000 });
@@ -55,18 +72,18 @@ export function createAccountApi({ accounts, save }) {
     });
   }
 
-  return async function handleApi(req, res, url) {
+  async function handleApi(req, res, url, data) {
     if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`)
       return reply(res, 403, { error: 'Origem não permitida.' });
     if (req.method === 'GET' && url.pathname === '/api/session') {
       const session = auth(req);
+      if (session) multiplayer?.touch(session.account);
       if (session) await cleanup.sweep(session.account);
       return session
         ? reply(res, 200, publicAccount(session.account))
         : reply(res, 401, { error: 'Entre na sua conta para continuar.' });
     }
     if (req.method !== 'POST') return reply(res, 405, { error: 'Método não permitido.' });
-    const data = await readJSON(req);
     if (['/api/register', '/api/login'].includes(url.pathname)) {
       const address = req.socket.remoteAddress;
       const recent = (attempts.get(address) || []).filter((t) => Date.now() - t < 60000);
@@ -104,6 +121,7 @@ export function createAccountApi({ accounts, save }) {
         if (Object.hasOwn(accounts, key))
           return reply(res, 409, { error: 'Esse nome já está em uso. Escolha outro.' });
         accounts[key] = {
+          gameSettings: { testMode: false },
           username,
           salt,
           digest,
@@ -129,6 +147,7 @@ export function createAccountApi({ accounts, save }) {
     }
     const session = auth(req);
     if (!session) return reply(res, 401, { error: 'Sua sessão terminou. Entre novamente.' });
+    multiplayer?.touch(session.account);
     await cleanup.sweep(session.account);
     if (url.pathname === '/api/town/open') {
       fishing.stop(session.account);
@@ -145,6 +164,7 @@ export function createAccountApi({ accounts, save }) {
         return reply(res, 400, { error: 'Posição inválida.' });
       if (
         !validFloorMove(session.account.position, data) ||
+        (multiplayer && !multiplayer.validateMove(session.account, data)) ||
         !world.canMove(session.account, data.x, data.y, floorOf(data))
       )
         return reply(res, 409, {
@@ -162,19 +182,27 @@ export function createAccountApi({ accounts, save }) {
         cooking.stop(session.account);
       }
       if (changedFloor) world.stop(session.account, { disengage: true });
+      const recallCancelled = world.moved(session.account, data);
       session.account.position = {
         x: data.x,
         y: data.y,
         ...(data.z === undefined ? {} : { z: data.z }),
       };
       await save();
-      return reply(res, 200, { ok: true });
+      return reply(res, 200, {
+        ok: true,
+        worldRevision: session.account.worldRevision,
+        utility: session.account.utility,
+        serverNow: Date.now(),
+        ...(recallCancelled ? { message: 'Retorno ao templo cancelado ao caminhar.' } : {}),
+      });
     }
     if (url.pathname === '/api/logout') {
       fishing.stop(session.account);
       cooking.stop(session.account);
       world.stop(session.account, { disengage: true });
       sessions.delete(session.token);
+      multiplayer?.leave(session.account);
       return reply(
         res,
         200,
@@ -204,6 +232,10 @@ export function createAccountApi({ accounts, save }) {
     if (url.pathname === '/api/cooking/tick')
       return reply(res, 200, await cooking.tick(session.account));
     if (url.pathname === '/api/cooking/stop') return reply(res, 200, cooking.stop(session.account));
+    if (url.pathname === '/api/social') {
+      if (!multiplayer) return reply(res, 409, { error: 'Multiplayer indisponível.' });
+      return reply(res, 200, await multiplayer.social(session.account, data));
+    }
     if (url.pathname === '/api/world/tick') {
       const result = await world.tick(session.account);
       if (result.playerRespawned) {
@@ -221,6 +253,18 @@ export function createAccountApi({ accounts, save }) {
       fishing.stop(session.account);
       cooking.stop(session.account);
       return reply(res, 200, await world.cast(session.account, data));
+    }
+    if (url.pathname === '/api/world/utility') {
+      if (data.key === 'b') {
+        fishing.stop(session.account);
+        cooking.stop(session.account);
+      }
+      return reply(res, 200, await world.utility(session.account, data));
+    }
+    if (url.pathname === '/api/world/adventure') {
+      fishing.stop(session.account);
+      cooking.stop(session.account);
+      return reply(res, 200, await world.adventure(session.account, data));
     }
     if (url.pathname === '/api/world/stop')
       return reply(res, 200, world.stop(session.account, data));
@@ -244,5 +288,13 @@ export function createAccountApi({ accounts, save }) {
     if (url.pathname === '/api/items/pickup')
       return reply(res, 200, await world.pickup(session.account, data));
     return reply(res, 404, { error: 'Rota não encontrada.' });
+  }
+  return async (req, res, url) => {
+    // Read the network body before acquiring the world queue: a slow upload must
+    // not freeze combat or every other player's requests.
+    const data = req.method === 'POST' ? await readJSON(req) : undefined;
+    return multiplayer
+      ? multiplayer.run(() => handleApi(req, res, url, data))
+      : handleApi(req, res, url, data);
   };
 }

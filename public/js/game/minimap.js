@@ -12,9 +12,20 @@ import { tileAt, propAt, houses, FISHING_SPOTS } from '../world/map.js';
 import { rect, ellipse, canvas } from '../graphics/drawing.js';
 import { MOB_DEFINITIONS } from './world-rules.js';
 import { TOWN_POINTS } from './town-rules.js';
+import { ORE_NODES, FORGE } from './adventure-rules.js';
 import { floorOf, FLOOR_LINKS, ORC_REGION, ORC_CASTLE, regionalPoint } from '../world/elevation.js';
 
 export const MINIMAP_MARKERS = [
+  ...ORE_NODES.map((n) => ({ ...n, type: 'mining' })),
+  { ...FORGE, type: 'forge' },
+  {
+    id: 'commander',
+    name: 'Comandante — sala norte da caverna',
+    type: 'boss',
+    x: 86,
+    y: 16,
+    z: -1,
+  },
   {
     id: 'orc-castle',
     type: 'castle',
@@ -83,7 +94,20 @@ function drawMarker(ctx, marker, x, y) {
   rect(ctx, '#172626', px - 4, py - 4, 9, 9);
   rect(ctx, '#d1c7a1', px - 3, py - 3, 7, 7);
   rect(ctx, '#334744', px - 2, py - 2, 5, 5);
-  if (marker.type === 'fishing') {
+  if (marker.type === 'mining') {
+    rect(ctx, '#c5d9df', px - 2, py - 2, 5, 1);
+    rect(ctx, '#9b754a', px, py - 1, 1, 4);
+    rect(ctx, '#8f9fa7', px - 2, py + 1, 2, 2);
+  } else if (marker.type === 'forge') {
+    rect(ctx, '#d3e0e1', px - 2, py - 2, 5, 2);
+    rect(ctx, '#8f9fa7', px, py, 1, 2);
+    rect(ctx, '#d2b16e', px - 2, py + 2, 5, 1);
+  } else if (marker.type === 'boss') {
+    rect(ctx, '#f0c36e', px - 2, py - 2, 1, 3);
+    rect(ctx, '#f0c36e', px, py - 2, 1, 3);
+    rect(ctx, '#f0c36e', px + 2, py - 2, 1, 3);
+    rect(ctx, '#cc634a', px - 2, py + 1, 5, 2);
+  } else if (marker.type === 'fishing') {
     rect(ctx, '#77d1ef', px - 2, py - 1, 4, 3);
     rect(ctx, '#c5f1f4', px - 1, py - 2, 2, 1);
     rect(ctx, '#77d1ef', px + 2, py - 2, 1, 5);

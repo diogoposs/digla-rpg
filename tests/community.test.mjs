@@ -40,8 +40,8 @@ test('Olhar usa ATK e ARM do catálogo em todos os equipamentos de proteção', 
   assert.match(lookItem('sword'), /ATK: 2/);
   for (const [id, item] of Object.entries(ITEMS)) {
     if (['helmet', 'armor', 'legs', 'boots', 'shield'].includes(item.equipmentSlot)) {
-      assert.equal(item.arm, 1);
-      assert.match(lookItem(id), /ARM: 1/);
+      assert.equal(item.arm, id === 'reinforced_armor' ? 2 : 1);
+      assert.ok(lookItem(id).includes(`ARM: ${item.arm}`));
     }
   }
 });

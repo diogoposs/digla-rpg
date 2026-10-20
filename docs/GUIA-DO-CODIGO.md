@@ -4,6 +4,67 @@ Comece por `public/js/config.js` para ajustes gerais e por `public/js/world/map.
 
 ## Onde está cada coisa
 
+### Multiplayer e salvamento sem banco — 1.0
+
+| Arquivo                           | Responsabilidade                                                                                                                                                            |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/multiplayer.mjs`          | Mundo único, fila de ações, presença, snapshots por jogador, eventos, colisão, limite de velocidade, chat, grupos, reserva de loot e trocas com confirmação dupla.          |
+| `server/storage.mjs`              | `openMultiplayerStore()`: importa contas antigas e grava contas/mundo juntos em `data/game.json`, via arquivo temporário e rename.                                          |
+| `server/api.mjs`                  | Autenticação, sessão única por conta, leitura dos pedidos e execução na fila do mundo; valida posições antes de aceitar.                                                    |
+| `server/mobs.mjs`                 | Vida e inteligência compartilhadas; timers e alvo dos monstros são únicos, ataques automáticos e venenos são individuais. Integra os callbacks de XP e loot do multiplayer. |
+| `server.mjs`                      | HTTP, cabeçalhos de segurança e endereço/porta. Usa `HOST` (`0.0.0.0`), `PORT` (`3000`) e `DIGLA_DATA_DIR` (`data/`).                                                       |
+| `public/js/ui/multiplayer.js`     | Painel Online, chat, convites, ofertas e confirmações de troca, nomes e barras dos outros jogadores. Texto recebido é inserido como texto, sem interpretar HTML.            |
+| `public/styles/multiplayer.css`   | Aparência dos painéis e nomes.                                                                                                                                              |
+| `public/js/game/world.js`         | Consulta snapshots, distribui efeitos, atualiza os jogadores remotos e interpola posições.                                                                                  |
+| `public/js/game/renderer.js`      | Desenha personagens remotos com seus outfits, respeitando piso e profundidade.                                                                                              |
+| `tests/multiplayer.test.mjs`      | Concorrência, loot reservado, XP de grupo, movimento, trocas e migração com relógio controlado.                                                                             |
+| `tests/multiplayer-http.test.mjs` | Servidor de produção em porta aleatória, dois usuários, combate independente, privacidade e reinício.                                                                       |
+| `tests/multiplayer.spec.mjs`      | Dois navegadores reais vendo e movendo jogadores, conversando, formando grupo e concluindo troca.                                                                           |
+
+**Como os dados se separam:** `SHARED` em `server/multiplayer.mjs` liga monstros, corpos, chão, cargas de minério, revisão e modo de teste ao objeto `world` único. Esses campos usam acessores não enumeráveis em cada conta; o JSON os grava uma única vez em `world`. Posição, inventário, banco, equipamentos, vida/mana, skills e missões pertencem à conta. Snapshots de outros jogadores têm apenas ID, nome, outfit, posição, direção e vida; nunca senha/hash, banco ou inventário.
+
+**Ciclo:** um timer de 100 ms executa `pulse()` na mesma fila das ações HTTP. A fila impede recolher a mesma pilha duas vezes e intercalar commits de troca. O corpo HTTP é lido antes da fila, para um upload incompleto não bloquear o mundo. Cada personagem controla seu alvo de ataque; cada monstro tem um alvo de perseguição e uma recarga únicos. `POST /api/world/tick` consulta o estado; não acelera a simulação. O cliente consulta a cada 250 ms e interpola os personagens remotos. Não há WebSocket nem dependência externa.
+
+**Grupos e loot:** `companions()` limita partilha a membros vivos do grupo, no mesmo piso e a oito quadrados. XP de dano é dividido, preservando o total. `contributions` registra dano real por monstro; quem mais contribuiu e o grupo próximo recebem reserva de loot por 60 segundos. Depois libera para todos. Ao morrer, o monstro também gera crédito para participantes próximos em missões.
+
+**Trocas:** `POST /api/social` aceita `tradeInvite`, `tradeAccept`, `tradeOffer`, `tradeConfirm` e `tradeCancel`. A oferta vincula slot, ID e quantidade; qualquer alteração incrementa a revisão e limpa confirmações. As duas confirmações precisam apontar à revisão atual. A transferência é planejada em cópias das duas mochilas e só aplicada se todos os itens e espaços forem válidos; um único salvamento inclui os dois inventários. Saída, distância maior que um quadrado ou dois minutos sem atualização da oferta cancelam. Nenhum item sai da mochila durante a negociação.
+
+**Outras ações sociais:** `chat`, `partyInvite`, `partyAccept`, `partyLeave`. Chat e grupos ficam em memória. Presença expira após dez segundos sem comunicação. A área protegida permite sobrepor jogadores para não bloquear o spawn; fora dela há colisão. O servidor só aceita um passo cardinal por movimento, transições de piso cadastradas e velocidade compatível com H. A página antecipa o movimento e corrige a posição se o servidor rejeitar.
+
+**Modo global:** nesta versão multiplayer, apenas o dono do servidor configura `DIGLA_TEST_MODE=1` antes de iniciar. A aba de modo explica isso e não permite alteração pelo jogador. O padrão é normal, inclusive para contas importadas; os campos individuais antigos de configuração deixam de controlar o mundo.
+
+**Arquivos privados:** `data/game.json` contém `{schema:1, accounts, world}`. Na ausência dele, `accounts.json` é importado e preservado como backup. O mundo começa compartilhado, sem juntar os antigos estados individuais de chão/monstros. Use um único processo por pasta; copie `data/` com o servidor parado para fazer backup. Sessões, chat, grupos e negociações não persistem. `data/`, `.env*`, logs e resultados de testes são ignorados pelo Git. O servidor só publica os arquivos autorizados de `public/`.
+
+**Rede:** execute `npm.cmd run dev` e abra `http://localhost:3000`; outra máquina na mesma rede usa `http://IP-DO-SERVIDOR:3000`. Para restringir ao próprio computador: `$env:HOST='127.0.0.1'`. O projeto não modifica firewall/roteador. GitHub guarda o código; não hospeda o processo Node nem as partidas.
+
+### Aventura, economia e progressão — 0.9
+
+| Arquivo                             | O que alterar                                                                                                                                                                                |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `public/js/game/adventure-rules.js` | `QUESTS`: sequência, objetivos e recompensas; `RECIPES`: ingredientes, nível e XP; `ORE_NODES`/`FORGE`: posições; `combatStats()`: ATK/Combate/ARM; `prices()`: compra/venda normal e teste. |
+| `server/adventure.mjs`              | Aceitar/entregar missões, validação do NPC, recompensas pendentes, extração com cargas/recuperação, fabricação e alteração do modo de teste.                                                 |
+| `server/inventory.mjs`              | Planejamento de entregas e fabricação em cópias do inventário, sem consumir antes de validar todos os resultados.                                                                            |
+| `public/js/ui/adventure.js`         | Diário, abas, progresso, configuração do modo, receitas, botões dos veios/forja e resumo de combate na lateral.                                                                              |
+| `public/styles/adventure.css`       | Aparência do diário, recursos, avisos dos monstros e mira do E.                                                                                                                              |
+| `server/mobs.mjs`                   | Aplicação de ATK e mitigação, registro de abates, arqueiro/xamã/defensor, especiais anunciados e reinício do chefe. `state.creatures[id].special` guarda geometria e horário do dano.        |
+| `public/js/game/world-rules.js`     | Definições e spawns dos novos orcs. `maxHealth` representa o modo 10×; `mobMaximum()` usa 1/10 para orcs no modo normal.                                                                     |
+| `public/js/world/map.js`            | Parede/porta da sala do comandante no piso -1 e colisão dos veios/forja.                                                                                                                     |
+| `public/js/graphics/adventure.js`   | Tapete da sala do chefe e detalhes visuais de cada novo tipo de orc.                                                                                                                         |
+| `public/js/game/world.js`           | Mira E, confirmação sem caminhar e desenho dos tiles de perigo, seguindo câmera/zoom/andar.                                                                                                  |
+
+Estado salvo: `quests`, `gathering` e XP de `skills.mining`/`skills.smithing` são pessoais. No multiplayer, `gameSettings` e `miningNodes` são do mundo compartilhado, como explicado acima. O JSON inteiro continua excluído do Git.
+
+`POST /api/world/adventure` recebe `action` (`accept`, `claim`, `mine`, `craft`, `stop`, `settings`) e `id` quando necessário. Todas as mudanças são validadas no servidor. `POST /api/world/cast` aceita `{key:'e',x,y,z}` para uma área sem alvo selecionado; Q/W continuam exigindo alvo. Recompensas não concedem XP de Vitalidade, que continua vindo apenas de dano real.
+
+### Corrida, templo, poções rápidas e corpos
+
+- **`game/utility-rules.js`**: duração e recargas de H/B, poções permitidas, migração dos três `quickSlots` e `cancelRecall()` para interromper casting ao sofrer dano ou caminhar.
+- **`server/utility.mjs`**: valida `/api/world/utility`, cobra os 10 de mana do H, configura/usa os atalhos e acompanha os 10 segundos de retorno. A recarga de B começa após chegar; os horários são persistidos em `account.utility`. O casting é cancelado se o intervalo entre ticks passar de 2 segundos, impedindo retorno offline.
+- **`game/movement.js`** recebe `speedMultiplier`; `game/game.js` usa 1,5 enquanto `hasteUntil` estiver ativo. Caminhada automática e setinhas usam a mesma velocidade.
+- **`ui/utility-bar.js`**: botões 1/2/3/H/B, configuração pelo direito e animação do retorno com progresso. `styles/world.css` posiciona as barras compactas; `styles/skills.css` e `styles/cooking.css` centralizam os painéis de atividades.
+- **`game/world-rules.js`**: `CORPSE_LIFETIME_MS` define 120.000 ms. `server/mobs.mjs` registra `createdAt`/`expiresAt`; mortes repetidas arquivam corpos anteriores em `extraCorpses`. `getCorpses()` reúne os corpos atuais e anteriores.
+- **`server/ground-cleanup.mjs`** remove corpos vencidos e o loot contido, independentemente do ciclo de 15 minutos dos itens. `server/items.mjs` aceita `source: 'corpse'`, apenas para `target: 'ground'`, e exige proximidade, andar correto e destino transitável. `ui/ground-items.js` cria as alças de arraste; mover conserva o prazo.
+
 ### Cajado de raio e habilidades
 
 - **`game/lightning-rules.js`** centraliza `LIGHTNING_STAFF`, a fórmula `lightningDamage(level) = 3 + 5 × nível`, intervalo automático de 3000 ms, recarga global de 500 ms e `LIGHTNING_ABILITIES` com custos, multiplicadores, áreas e recargas individuais. Altere esses valores aqui.
@@ -41,9 +102,10 @@ Comece por `public/js/config.js` para ajustes gerais e por `public/js/world/map.
 Digla RPG/
 ├── Iniciar Digla.cmd          Abre o servidor no Windows
 ├── package.json              Comandos e dependências de desenvolvimento
-├── server.mjs                Inicia o servidor em localhost:3000
+├── server.mjs                Inicia o servidor multiplayer na porta 3000
 ├── server/
 │   ├── api.mjs               Cadastro, login, sessão, posição e rotas das atividades
+│   ├── multiplayer.mjs       Mundo compartilhado, presença, chat, grupos e trocas
 │   ├── fishing.mjs           RNG de pesca, bônus, recompensas e validações
 │   ├── cooking.mjs           Consumo de peixe, RNG de cozinha e XP de Culinária
 │   ├── world.mjs             Conecta combate, itens, lojas, banco e limpeza
@@ -51,10 +113,11 @@ Digla RPG/
 │   ├── ground-cleanup.mjs    Ciclos de limpeza do chão e data persistida
 │   ├── mobs.mjs              Combate, perseguição, fraquezas, loot e XP por dano
 │   ├── items.mjs             Comida, transferências, equipamento e elemento
-│   ├── storage.mjs           Lê e grava as contas em JSON
+│   ├── storage.mjs           Grava contas e mundo em um documento JSON atômico
 │   └── http.mjs              Respostas HTTP e entrega da pasta public/
 ├── data/
-│   └── accounts.json         Suas contas, cores e posições (gerado automaticamente)
+│   ├── game.json             Contas e mundo privados (gerado automaticamente)
+│   └── accounts.json         Backup privado da versão anterior, quando existente
 ├── public/
 │   ├── index.html            Estrutura e textos das telas
 │   ├── app.js                Conecta menu e jogo; ciclo de animação
@@ -274,7 +337,7 @@ Vida, mana, pilhas no chão, estado do orc, último cadáver, arma equipada e el
 - `game/town-rules.js` → `TOWN_POINTS`: posição única compartilhada pelo cenário, colisão, clique, minimapa e servidor. Para mover um vendedor, altere apenas a coordenada aqui. `graphics/town.js` desenha os balcões e banco; `renderer.js` inclui os objetos e reconhece cliques na parte alta dos sprites.
 - `shopStock()` deriva o estoque do catálogo e fixa o preço em **1 ouro por unidade**. `server/town.mjs` aplica o mesmo valor na compra/venda; para mudar preços, atualize também a cobrança e os textos de `ui/town.js`. Moedas não são mercadoria. A loja de alimentos começa com salmões, sem poções.
 - `server/api.mjs`: rotas `town/open`, `town/buy`, `town/sell`, `town/deposit`, `town/depositAll` e `town/withdraw`. O servidor exige distância de até um tile, quantidade inteira positiva, origem válida, saldo e espaço. A transação é planejada em cópias e só então aplicada/salva, evitando perda de itens se a mochila ou banco estiver cheio. `depositAll()` testa todos os itens antes de esvaziar a mochila: se algum não couber, recusa tudo sem perda.
-- `account.bank` tem **48 slots**, separados da mochila. `ensureTown()` migra contas antigas. `ui/town.js` mantém a seleção, quantidade e ações; `game/world.js` exige proximidade, abre o painel e fecha ao afastar-se. O banco aceita moedas, peixes e equipamentos e persiste em `data/accounts.json`.
+- `account.bank` tem **48 slots**, separados da mochila. `ensureTown()` migra contas antigas. `ui/town.js` mantém a seleção, quantidade e ações; `game/world.js` exige proximidade, abre o painel e fecha ao afastar-se. O depósito é pessoal e persiste em `data/game.json`.
 - `ui/town.js` → `renderSlots()`: botão direito deposita/retira a pilha inteira. `depositItem()` também recebe os cliques da mochila lateral via `ui/inventory.js` → `onDeposit`, somente quando o banco está aberto; fora dele, comer/equipar mantém o comportamento normal. O botão **Guardar toda a mochila** chama `town/depositAll`. Equipamentos vestidos não são incluídos.
 - `game/minimap.js` → `MINIMAP_MARKERS` e `MINIMAP_LEGEND`: ícones de pesca, templo, fogão, lojas e banco. `world/map.js` → `FISHING_SPOTS` contém as margens sugeridas; pescar continua permitido junto a qualquer água.
 
@@ -290,7 +353,7 @@ Vida, mana, pilhas no chão, estado do orc, último cadáver, arma equipada e el
 
 ### Limpeza automática dos itens no chão
 
-`game/world-rules.js` → `GROUND_CLEANUP_INTERVAL_MS` define **15 minutos**. `server/ground-cleanup.mjs` usa `account.nextGroundCleanupAt`, persistido no JSON, para manter o ciclo mesmo após reiniciar. `sweep()` esvazia apenas `groundItems`, avança a próxima data pelo número de ciclos vencidos e incrementa `worldRevision`; mochila, equipamento, banco e cadáveres não são removidos.
+`game/world-rules.js` → `GROUND_CLEANUP_INTERVAL_MS` define **15 minutos**. `server/ground-cleanup.mjs` usa `account.nextGroundCleanupAt`, persistido no JSON, para manter o ciclo mesmo após reiniciar. `sweep()` esvazia `groundItems`, avança a próxima data pelo número de ciclos vencidos e incrementa `worldRevision`; mochila, equipamento e banco são preservados. Os cadáveres seguem o prazo individual de **2 minutos** de `expiresAt`, verificado pelo mesmo serviço, inclusive para contas offline.
 
 `server/api.mjs` executa a limpeza a cada segundo para todas as contas, mesmo desconectadas, e também antes das ações autenticadas. `server/world.mjs` aplica a mesma regra no tick; mover itens não reinicia a contagem. Contas antigas recebem um primeiro prazo sem perder seus objetos imediatamente. Alterar o intervalo não muda um prazo já salvo: ele será usado nos ciclos seguintes. Os testes usam relógio simulado para verificar 15 minutos sem precisar esperar esse tempo real.
 
@@ -381,7 +444,7 @@ Se for configurar o projeto em outro computador, rode `npm install` e `npx playw
 
 ## Seus dados
 
-`data/accounts.json` é criado automaticamente. Ele contém nome, hash/salt da senha, outfit, posição, inventário, XP das skills, vida/mana, itens no chão e estado do orc. Faça uma cópia da pasta `data/` para guardar suas contas. Não é necessário alterá-la para editar o cenário. Contas antigas recebem os novos campos automaticamente, preservando os dados anteriores.
+`data/game.json` é criado automaticamente e contém contas e mundo compartilhado. A seção multiplayer no início deste guia explica a migração de `accounts.json`, a separação de dados e o backup. Não é necessário alterar os salvamentos para editar o cenário.
 
 Os testes usam contas separadas em pastas temporárias ou `test-results/browser-data`; não alteram suas contas de jogo. `test-results/screenshots` contém capturas de verificação e não faz parte da arte utilizada pelo jogo.
 

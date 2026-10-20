@@ -15,6 +15,7 @@ import { TOWN_POINTS } from '../public/js/game/town-rules.js';
 import { MINIMAP_MARKERS } from '../public/js/game/minimap.js';
 import { regionalPoint, floorOf } from '../public/js/world/elevation.js';
 import { MOB_DEFINITIONS } from '../public/js/game/world-rules.js';
+import { FORGE } from '../public/js/game/adventure-rules.js';
 
 function reachableTiles() {
   const queue = [{ ...SPAWN }];
@@ -82,7 +83,7 @@ test('comerciantes e banco bloqueiam somente seus tiles com acesso pelos quatro 
     ])
       assert.equal(
         reachable.has(`${point.x + dx},${point.y + dy}`),
-        true,
+        !(point.x + dx === FORGE.x && point.y + dy === FORGE.y),
         `Acesso a ${point.name}`,
       );
   }

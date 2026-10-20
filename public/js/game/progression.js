@@ -2,6 +2,8 @@ import { BACKPACK_CAPACITY, GAME_VERSION } from '../config.js';
 import { ensureWorld, getMobs, getCorpses } from './world-rules.js';
 import { ensureTown } from './town-rules.js';
 import { skillProgress } from './skill-rules.js';
+import { ensureUtility } from './utility-rules.js';
+import { ensureAdventure, combatStats } from './adventure-rules.js';
 export { skillProgress } from './skill-rules.js';
 
 // XP total é salvo; nível e progresso são calculados para não ficarem inconsistentes.
@@ -11,8 +13,10 @@ export { skillProgress } from './skill-rules.js';
 export function ensureProgress(account) {
   ensureWorld(account);
   ensureTown(account);
+  ensureUtility(account);
+  ensureAdventure(account);
   account.skills ??= {};
-  for (const skill of ['fishing', 'magic', 'cooking', 'combat', 'vitality']) {
+  for (const skill of ['fishing', 'magic', 'cooking', 'combat', 'vitality', 'mining', 'smithing']) {
     const xp = account.skills[skill]?.xp;
     account.skills[skill] = {
       xp: Number.isFinite(xp) && xp >= 0 && xp <= Number.MAX_SAFE_INTEGER / 2 ? xp : 0,
@@ -43,6 +47,13 @@ export function publicProgress(account) {
     equipment: account.equipment,
     attackElement: account.attackElement,
     abilityCooldowns: account.abilityCooldowns || {},
+    utility: account.utility,
+    quickSlots: account.quickSlots,
+    quests: account.quests,
+    gameSettings: account.gameSettings,
+    combatStats: combatStats(account),
+    gathering: account.gathering || null,
+    miningNodes: account.miningNodes,
     serverNow: Date.now(),
     skills: {
       fishing: skillProgress(account.skills.fishing.xp),
@@ -50,6 +61,8 @@ export function publicProgress(account) {
       cooking: skillProgress(account.skills.cooking.xp),
       combat: skillProgress(account.skills.combat.xp),
       vitality: skillProgress(account.skills.vitality.xp),
+      mining: skillProgress(account.skills.mining.xp),
+      smithing: skillProgress(account.skills.smithing.xp),
     },
   };
 }

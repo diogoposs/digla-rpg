@@ -102,14 +102,16 @@
 }
 .fishing-panel {
   position: absolute;
-  bottom: 67px;
+  pointer-events: none;
+  top: 50%;
+  bottom: auto;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   width: min(290px, calc(100% - 34px));
   padding: 13px 15px;
   border: 1px solid #a19061;
   background: #111e19f2;
-  z-index: 3;
+  z-index: 14;
   box-shadow: 0 4px 24px #0005;
 }
 .fishing-heading {

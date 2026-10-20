@@ -11,6 +11,7 @@ import {
   mobAt,
 } from '../public/js/game/world-rules.js';
 import { eatSalmon } from './nutrition.mjs';
+import { equipmentRequirement } from '../public/js/game/adventure-rules.js';
 
 // Transferências são validadas inteiras antes de alterar origem/destino.
 export function createItemService({ save, now = Date.now }) {
@@ -33,6 +34,26 @@ export function createItemService({ save, now = Date.now }) {
     },
   ) {
     ensureProgress(account);
+    if (source === 'corpse') {
+      const corpse = getCorpses(account).find((c) => c.id === id);
+      if (!corpse || (Number.isFinite(corpse.expiresAt) && now() >= corpse.expiresAt))
+        return response(account, 'Esse corpo não está mais aqui.');
+      if (target !== 'ground' || distance(account.position, corpse) > 1)
+        return response(account, 'Fique ao lado do corpo e arraste para o chão.');
+      const destination = { x, y, z: z ?? floorOf(account.position) };
+      if (
+        !Number.isInteger(x) ||
+        !Number.isInteger(y) ||
+        floorOf(destination) !== floorOf(account.position) ||
+        !walkable(x, y, floorOf(destination)) ||
+        mobAt(account, x, y, floorOf(destination))
+      )
+        return response(account, 'Escolha um quadrado livre onde possa andar.');
+      Object.assign(corpse, destination);
+      account.worldRevision++;
+      await save();
+      return { ...publicProgress(account), moved: true };
+    }
     let item, remove, replace, lootCorpse, originEquipmentSlot;
     if (source === 'ground') {
       const ground = account.groundItems.find((entry) => entry.id === id);
@@ -43,7 +64,11 @@ export function createItemService({ save, now = Date.now }) {
       remove = () => account.groundItems.splice(account.groundItems.indexOf(ground), 1);
     } else if (source === 'loot') {
       lootCorpse = getCorpses(account).find((corpse) => corpse.id === corpseId);
-      if (!lootCorpse || distance(account.position, lootCorpse) > 1)
+      if (
+        !lootCorpse ||
+        (Number.isFinite(lootCorpse.expiresAt) && now() >= lootCorpse.expiresAt) ||
+        distance(account.position, lootCorpse) > 1
+      )
         return response(account, 'Fique ao lado do corpo para pegar o loot.');
       if (!Number.isInteger(slot)) return response(account, 'Espaço de loot inválido.');
       item = lootCorpse.slots[slot];
@@ -125,6 +150,8 @@ export function createItemService({ save, now = Date.now }) {
           });
       }
     } else if (target === 'equipment') {
+      if (!equipmentRequirement(account, ITEMS[item.id]))
+        return response(account, 'Você ainda não tem a skill exigida para equipar este item.');
       const destination =
         equipmentSlot ??
         (typeof targetSlot === 'string' ? targetSlot : ITEMS[item.id].equipmentSlot);

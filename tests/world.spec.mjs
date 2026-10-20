@@ -107,10 +107,7 @@ test('orc verde visível, selecionar combate, receber dano e derrotar o inimigo'
   await expect.poll(() => account.orc.health, { timeout: 8000 }).toBe(0);
   await expect(page.locator('#orc-label')).toBeHidden();
   expect(account.corpse).toBeTruthy();
-  const box = await page.locator('#world').boundingBox();
-  await page
-    .locator('#world')
-    .click({ button: 'right', position: { x: box.width / 2, y: box.height / 2 - 64 } });
+  await page.locator(`[data-corpse-id="${account.corpse.id}"]`).click({ button: 'right' });
   await expect(page.locator('#loot-panel')).toBeVisible();
   await expect(page.locator('#loot-grid [role="listitem"]')).toHaveCount(6);
   await expect(page.locator('#loot-grid [aria-label$="— vazio"]')).toHaveCount(

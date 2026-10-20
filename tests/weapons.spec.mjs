@@ -16,10 +16,7 @@ test('loot equipa cajado, botão esquerdo não ataca, elementos animam e ataque 
       slots: [{ id: 'staff', quantity: 1 }, null, null, null, null, null],
     },
   });
-  const box = await page.locator('#world').boundingBox();
-  await page
-    .locator('#world')
-    .click({ button: 'right', position: { x: box.width / 2, y: box.height / 2 + 64 } });
+  await page.locator('[data-corpse-id="staff-corpse"]').click({ button: 'right' });
   await expect(page.locator('#loot-panel')).toBeVisible();
   await page
     .locator('#loot-grid')

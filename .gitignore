@@ -9,3 +9,8 @@ test-results/
 .agents/
 playwright-report/
 *.tmp
+*.pem
+*.key
+*.pfx
+*.p12
+*.bak

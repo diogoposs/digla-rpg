@@ -24,6 +24,12 @@ export function createActions({ getPosition, fishing, cooking, world }) {
       }
     },
     async press(key) {
+      if (['h', 'b', '1', '2', '3'].includes(key)) {
+        await world.utility(
+          ['1', '2', '3'].includes(key) ? { key: 'quick', index: Number(key) - 1 } : { key },
+        );
+        return;
+      }
       if (['q', 'w', 'e', 'r'].includes(key)) {
         await world.cast(key);
         return;

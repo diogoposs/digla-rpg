@@ -2,6 +2,7 @@ import { WIDTH, HEIGHT, WELL, STOVE, TEMPLE, FIRE_REGION, WATER_REGION } from '.
 import { TOWN_POINTS, BANK_HALL } from '../game/town-rules.js';
 import { hash } from './random.js';
 import { treeStyleAt, BIOME_TREES } from './vegetation.js';
+import { FORGE, ORE_NODES } from '../game/adventure-rules.js';
 import {
   ORC_REGION,
   ORC_CASTLE,
@@ -150,6 +151,11 @@ export function tileAt(x, y, z = 0) {
   if (z === -1) {
     const cave = caveAt(x, y);
     if (!cave) return 'void';
+    if (
+      cave.id === 'orc' &&
+      ((y === 21 && x >= 80 && x <= 94 && x !== 86) || ((x === 82 || x === 90) && y === 15))
+    )
+      return 'cave_wall';
     if (x === cave.x || y === cave.y || x === cave.x + cave.w - 1 || y === cave.y + cave.h - 1)
       return 'cave_wall';
     if (
@@ -273,6 +279,11 @@ export function walkable(x, y, z = 0) {
   )
     return false;
   if (['water', 'lava', 'void', 'cliff', 'castle_wall', 'cave_wall'].includes(tileAt(x, y, z)))
+    return false;
+  if (
+    (z === 0 && x === FORGE.x && y === FORGE.y) ||
+    ORE_NODES.some((n) => n.x === x && n.y === y && n.z === z)
+  )
     return false;
   if (z !== 0) return true;
   if (x === WELL.x && y === WELL.y) return false;

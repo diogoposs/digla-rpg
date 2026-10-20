@@ -1,6 +1,6 @@
 // Ajustes gerais. As posições do mapa são medidas em tiles, não em pixels.
 export const TILE = 32;
-export const GAME_VERSION = '0.7.1';
+export const GAME_VERSION = '1.0.0';
 export const WORLD_SCALE = 2;
 export const STEP_DURATION_MS = 165; // Aumente para caminhar mais devagar.
 export const AUTOSAVE_INTERVAL_MS = 2500;

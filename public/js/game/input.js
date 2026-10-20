@@ -17,7 +17,8 @@ export function createInput({ isPlaying, onPause, onResume, onHide, onAction }) 
       !event.altKey &&
       !event.ctrlKey &&
       !event.metaKey &&
-      (['f', 'q', 'w', 'e', 'r'].includes(event.key.toLowerCase()) || event.key === 'Escape')
+      (['f', 'q', 'w', 'e', 'r', 'h', 'b', '1', '2', '3'].includes(event.key.toLowerCase()) ||
+        event.key === 'Escape')
     ) {
       event.preventDefault();
       if (!event.repeat) onAction?.(event.key.toLowerCase());

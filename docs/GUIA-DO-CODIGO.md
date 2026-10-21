@@ -4,13 +4,35 @@ Comece por `public/js/config.js` para ajustes gerais e por `public/js/world/map.
 
 ## Onde está cada coisa
 
-### Multiplayer e salvamento sem banco — 1.0
+### PostgreSQL/Neon — 1.1
+
+| Arquivo                      | Responsabilidade                                                                                                                                                  |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/postgres.mjs`        | Conexão TLS, pool de duas conexões, migração, checkpoints, transações, validação da instância autora e encerramento do banco.                                     |
+| `server/db/schema.sql`       | Estrutura privada: `digla_accounts` (chave do login + JSONB pessoal) e `digla_world` (JSONB compartilhado, versão, revisão e instância autora).                   |
+| `server/storage.mjs`         | `openGameStore()` seleciona PostgreSQL quando existe `DATABASE_URL`, ou JSON local quando ausente. `readLocalDocument()` lê os arquivos antigos sem modificá-los. |
+| `server.mjs`                 | Inicializa banco e normalização antes da prontidão; usa 503 e encerra após falha de gravação; no SIGTERM/SIGINT aguarda a fila e o checkpoint.                    |
+| `.env.example`               | Nomes de configurações locais, sem credenciais. `.env` real é ignorado pelo Git e carregado por `npm start`/`npm run dev`.                                        |
+| `tests/postgres.test.mjs`    | Persistência após reinício, migração única, rollback de trocas, agrupamento, gravações concorrentes e isolamento de processos.                                    |
+| `tests/helpers/database.mjs` | PGlite local ou PostgreSQL real no CI; cada teste cria seu próprio schema, sem acessar tabelas de produção.                                                       |
+
+**Persistência:** o motor continua trabalhando em memória. `save()` tira uma cópia serializada das contas e do mundo. A transação faz `SELECT ... FOR UPDATE` no mundo, verifica `owner_id`, escreve somente contas alteradas e confirma tudo junto. A revisão visual `worldRevision` não força uma gravação sozinha. Valores passam por parâmetros SQL; credenciais e registros privados não são devolvidos em erros.
+
+**Frequência:** compras, vendas, uso/transferência de itens, trocas, cadastro e logout usam `await save()` durável. Movimento usa `save({defer:true})`; o timer do multiplayer executa `pulse()` dentro de `save.background()`. Esses caminhos agrupam snapshots por aproximadamente 1s, enquanto HTTP e animação continuam. Um `save()` durável inclui também o checkpoint pendente. O último segundo ainda pendente pode ser perdido numa queda abrupta; o desligamento normal faz flush. O timer não consulta o banco quando não há mudanças, permitindo ociosidade do Neon.
+
+**Migração:** na primeira inicialização com tabelas vazias, importa o JSON disponível na pasta privada; `accounts.json` legado também é aceito. Não sobrescreve um banco já inicializado com arquivo antigo. A migração ocorre numa transação e deixa os arquivos originais intactos. JSON perdido na Render antes desse início não é recuperável. Para testes locais, mantenha JSON ou use uma branch Neon separada da produção.
+
+**Instância única:** cada inicialização assume `owner_id` na linha do mundo. A próxima tentativa de gravação do processo anterior falha antes de alterar contas/mundo. Esse mecanismo protege o intervalo de sobreposição de deploys; não permite vários servidores simultâneos no mesmo mundo. Uma falha SQL bloqueia ações e encerra o processo para recuperar o último estado confirmado ao reiniciar; nunca continua com um JSON temporário.
+
+**Ativação:** crie o projeto gratuito Neon, copie a URL **pooled** de Connect para `DATABASE_URL` em Render → Environment e publique esta versão. O `render.yaml` usa `sync:false`: ele não contém o segredo. `GET /api/server-info` retorna `storage: "postgres"` e `temporarySaves:false` quando o banco estiver ativo. Uma URL definida mas inválida impede o início; não há fallback silencioso. Certificados TLS são verificados em conexões remotas. Senhas continuam em scrypt+salt e a API do navegador permanece a mesma.
+
+### Multiplayer e modo JSON — 1.0
 
 **Hospedagem:** `render.yaml` descreve um servidor Node gratuito, porta automática do provedor e health check `/healthz`. `.github/workflows/ci.yml` executa formatação, regras/HTTP e testes de navegador em Linux/Node 24; Actions têm permissão apenas de leitura do código. O Blueprint solicita deploy após checks passarem. A ativação do serviço é feita na conta Render pelo botão do README.
 
 `server/hosting.mjs` lê `PUBLIC_ORIGIN` ou `RENDER_EXTERNAL_URL`. `server/api.mjs` compara Origin com esse valor e emite cookies Secure em HTTPS; não confia em cabeçalhos de proxy arbitrários. Sem origem configurada, localhost e rede local continuam funcionando por HTTP. `GET /api/server-info` informa apenas versão, multiplayer e se os salvamentos são temporários. Com `DIGLA_TEMPORARY_SAVES=1`, `public/app.js` mostra esse aviso no login. `tests/hosting.test.mjs` e o teste HTTP verificam origem, cookies, bloqueio de origem externa e compatibilidade local.
 
-O Blueprint **não inclui dados locais nem armazenamento persistente**: o filesystem Free pode ser apagado em suspensões/reinícios/deploys. Nunca use Git como backup de contas. Para preservar dados online futuramente, configure armazenamento privado persistente e mantenha apenas um servidor por pasta de dados.
+O Blueprint não inclui dados locais nem contrata disco pago. Com `DATABASE_URL`, o salvamento é PostgreSQL externo; sem ela, o filesystem Free continua temporário. Nunca use Git como backup de contas. Mantenha uma única instância por banco/mundo.
 
 | Arquivo                           | Responsabilidade                                                                                                                                                            |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -29,7 +51,7 @@ O Blueprint **não inclui dados locais nem armazenamento persistente**: o filesy
 
 **Como os dados se separam:** `SHARED` em `server/multiplayer.mjs` liga monstros, corpos, chão, cargas de minério, revisão e modo de teste ao objeto `world` único. Esses campos usam acessores não enumeráveis em cada conta; o JSON os grava uma única vez em `world`. Posição, inventário, banco, equipamentos, vida/mana, skills e missões pertencem à conta. Snapshots de outros jogadores têm apenas ID, nome, outfit, posição, direção e vida; nunca senha/hash, banco ou inventário.
 
-**Ciclo:** um timer de 100 ms executa `pulse()` na mesma fila das ações HTTP. A fila impede recolher a mesma pilha duas vezes e intercalar commits de troca. O corpo HTTP é lido antes da fila, para um upload incompleto não bloquear o mundo. Cada personagem controla seu alvo de ataque; cada monstro tem um alvo de perseguição e uma recarga únicos. `POST /api/world/tick` consulta o estado; não acelera a simulação. O cliente consulta a cada 250 ms e interpola os personagens remotos. Não há WebSocket nem dependência externa.
+**Ciclo:** um timer de 100 ms executa `pulse()` na mesma fila das ações HTTP. A fila impede recolher a mesma pilha duas vezes e intercalar commits de troca. O corpo HTTP é lido antes da fila, para um upload incompleto não bloquear o mundo. Cada personagem controla seu alvo de ataque; cada monstro tem um alvo de perseguição e uma recarga únicos. `POST /api/world/tick` consulta o estado; não acelera a simulação. O cliente consulta a cada 250 ms e interpola os personagens remotos. Não há WebSocket; a persistência pode usar o PostgreSQL externo.
 
 **Grupos e loot:** `companions()` limita partilha a membros vivos do grupo, no mesmo piso e a oito quadrados. XP de dano é dividido, preservando o total. `contributions` registra dano real por monstro; quem mais contribuiu e o grupo próximo recebem reserva de loot por 60 segundos. Depois libera para todos. Ao morrer, o monstro também gera crédito para participantes próximos em missões.
 

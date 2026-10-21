@@ -44,7 +44,12 @@ export default async function setup() {
   // Spawn Node directly: this also allows reliable teardown on Windows.
   const child = spawn(process.execPath, ['server.mjs'], {
     cwd: new URL('..', import.meta.url),
-    env: { ...process.env, PORT: '3001', DIGLA_DATA_DIR: './test-results/browser-data' },
+    env: {
+      ...process.env,
+      PORT: '3001',
+      DIGLA_DATA_DIR: './test-results/browser-data',
+      DATABASE_URL: '',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });

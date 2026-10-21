@@ -531,7 +531,7 @@ export function createMultiplayer({
     timer = setInterval(() => {
       if (pulsing || queued > 20) return;
       pulsing = true;
-      void run(pulse)
+      void run(() => (save.background ? save.background(pulse) : pulse()))
         .catch((e) => console.error('Falha no tick multiplayer:', e.message))
         .finally(() => {
           pulsing = false;

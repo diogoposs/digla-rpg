@@ -29,8 +29,7 @@ export async function openAccountStore(directory) {
 
 // One atomic document commits inventories and the shared world together, without a database.
 // Legacy accounts.json is read once and left untouched as a private migration backup.
-export async function openMultiplayerStore(directory) {
-  await mkdir(directory, { recursive: true });
+export async function readLocalDocument(directory) {
   const filename = path.join(directory, 'game.json');
   let document;
   try {
@@ -45,12 +44,28 @@ export async function openMultiplayerStore(directory) {
     }
     document = { schema: 1, accounts, world: {} };
   }
-  if (document.schema !== 1 || !document.accounts || !document.world)
+  if (
+    document.schema !== 1 ||
+    !document.accounts ||
+    !document.world ||
+    typeof document.accounts !== 'object' ||
+    typeof document.world !== 'object' ||
+    Array.isArray(document.accounts) ||
+    Array.isArray(document.world)
+  )
     throw new Error('Formato do salvamento multiplayer inválido.');
+  return document;
+}
+
+export async function openMultiplayerStore(directory) {
+  await mkdir(directory, { recursive: true });
+  const filename = path.join(directory, 'game.json');
+  const document = await readLocalDocument(directory);
   const accounts = Object.assign(Object.create(null), document.accounts),
     sharedWorld = document.world;
   let pending = Promise.resolve();
   return {
+    backend: 'json',
     accounts,
     sharedWorld,
     save() {
@@ -63,5 +78,19 @@ export async function openMultiplayerStore(directory) {
         });
       return pending;
     },
+    async close() {
+      await pending;
+    },
   };
+}
+
+export async function openGameStore({
+  directory,
+  connectionString = process.env.DATABASE_URL,
+  onFatal,
+} = {}) {
+  if (!connectionString) return openMultiplayerStore(directory);
+  const { openPostgresStore } = await import('./postgres.mjs');
+  // A configured but unavailable database must never fall back to temporary files.
+  return openPostgresStore({ directory, connectionString, onFatal });
 }

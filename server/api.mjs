@@ -20,6 +20,8 @@ export function createAccountApi({
   publicOrigin = '',
   secureCookies = false,
   temporarySaves = false,
+  backend = 'json',
+  assertWritable = () => {},
 }) {
   const cookieSecurity = secureCookies ? '; Secure' : '';
   const sessions = new Map();
@@ -49,7 +51,7 @@ export function createAccountApi({
     }
   }
   void sweepGround();
-  setInterval(sweepGround, 1000).unref();
+  const cleanupTimer = setInterval(sweepGround, 1000).unref();
   function publicAccount(a) {
     if (!walkable(a.position?.x, a.position?.y, floorOf(a.position))) a.position = { ...SPAWN };
     return {
@@ -88,6 +90,7 @@ export function createAccountApi({
         gameVersion: GAME_VERSION,
         multiplayer: Boolean(multiplayer),
         temporarySaves,
+        storage: backend,
       });
     if (req.method === 'GET' && url.pathname === '/api/session') {
       const session = auth(req);
@@ -150,6 +153,7 @@ export function createAccountApi({
           createdAt: new Date().toISOString(),
         };
         ensureProgress(accounts[key]);
+        multiplayer?.bind(accounts[key]);
         await save();
         return signIn(res, key, 201);
       }
@@ -202,7 +206,7 @@ export function createAccountApi({
         y: data.y,
         ...(data.z === undefined ? {} : { z: data.z }),
       };
-      await save();
+      await save({ defer: true });
       return reply(res, 200, {
         ok: true,
         worldRevision: session.account.worldRevision,
@@ -217,6 +221,7 @@ export function createAccountApi({
       world.stop(session.account, { disengage: true });
       sessions.delete(session.token);
       multiplayer?.leave(session.account);
+      await save();
       return reply(
         res,
         200,
@@ -305,12 +310,20 @@ export function createAccountApi({
       return reply(res, 200, await world.pickup(session.account, data));
     return reply(res, 404, { error: 'Rota não encontrada.' });
   }
-  return async (req, res, url) => {
+  const api = async (req, res, url) => {
     // Read the network body before acquiring the world queue: a slow upload must
     // not freeze combat or every other player's requests.
     const data = req.method === 'POST' ? await readJSON(req) : undefined;
-    return multiplayer
-      ? multiplayer.run(() => handleApi(req, res, url, data))
-      : handleApi(req, res, url, data);
+    const handle = () => {
+      assertWritable();
+      return handleApi(req, res, url, data);
+    };
+    return multiplayer ? multiplayer.run(handle) : handle();
   };
+  api.close = async () => {
+    clearInterval(cleanupTimer);
+    multiplayer?.close();
+    if (multiplayer) await multiplayer.run(() => {});
+  };
+  return api;
 }

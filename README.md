@@ -1,20 +1,35 @@
 # Digla RPG
 
-**Protótipo multiplayer 2D — versão 1.0.** Vários jogadores compartilham o mesmo mundo em um servidor Node.js, sem banco de dados. As contas e os salvamentos são privados e não acompanham o repositório. Ainda não há hospedagem pública do jogo.
+**Protótipo multiplayer 2D — versão 1.1.** Vários jogadores compartilham o mesmo mundo em um servidor Node.js. Suporta PostgreSQL/Neon para persistência online e JSON para uso local. Contas, senhas e salvamentos são privados e não acompanham o repositório. **[Jogar na Render](https://digla-rpg.onrender.com)**.
 
-Sem serviços externos ou dependências de execução. Requer Node.js 22 ou superior.
+Requer Node.js **22.9 ou superior**. Execute `npm.cmd ci` após baixar o projeto para instalar as dependências. O cliente usa JavaScript e Canvas; a conexão PostgreSQL usa `pg` somente no servidor.
 
 Para entender e editar o projeto, veja o **[Guia do código](docs/GUIA-DO-CODIGO.md)**: estrutura das pastas, responsabilidade de cada arquivo e exemplos de alterações de velocidade, casas, chão, cores e sprites.
 
 ## Jogar
 
+### PostgreSQL/Neon: ativar persistência
+
+1. Crie um projeto **Free** chamado `digla-rpg` no [Neon](https://console.neon.tech), preferencialmente na região AWS **US East (N. Virginia)**, próxima à hospedagem.
+2. Em **Connect**, ative **Connection pooling** e copie a conexão PostgreSQL. Ela contém uma senha: mantenha-a somente nas configurações privadas.
+3. Na Render, abra o serviço **digla-rpg → Environment** e crie **`DATABASE_URL`** com a conexão do Neon. Salve e publique a versão que inclui esta integração. Não coloque o valor no `render.yaml`, no GitHub ou no código do navegador.
+4. O servidor cria as tabelas e carrega os dados antes de responder ao health check. Em **`/api/server-info`**, confirme **`storage: "postgres"`** e **`temporarySaves: false`**. Só esses indicadores confirmam que a instância está usando o banco; publicar o código sozinho não ativa o Neon.
+
+Com o PostgreSQL ativo, contas, personagens, bancos, inventários, skills e mundo persistem no banco após reinícios da Render. Trocas, compras e transferências aguardam uma transação concluída. Posição e evolução automática do mundo são agrupadas em checkpoints de aproximadamente **um segundo**; uma interrupção abrupta pode perder o último intervalo ainda não confirmado. O encerramento normal aguarda a fila e descarrega o checkpoint pendente.
+
+No primeiro início com um banco vazio, são importados `data/game.json` ou o legado `data/accounts.json`, **se os arquivos estiverem disponíveis naquele ambiente**. Eles permanecem intactos. Um banco inicializado sempre tem prioridade sobre um JSON antigo. Arquivos que já foram apagados pelo filesystem temporário da Render não podem ser recuperados; uma nova publicação também pode eliminar o JSON da instância anterior antes da importação. O repositório não transporta esses arquivos privados.
+
+**Localhost:** sem `DATABASE_URL`, o jogo continua usando `data/game.json`. Para testar PostgreSQL localmente, copie `.env.example` para `.env`, preencha a conexão e execute `npm.cmd run dev`; os comandos de início carregam o `.env` automaticamente. Use uma **branch/banco de desenvolvimento separado**: não execute localhost e Render contra o mesmo banco simultaneamente. O jogo tem uma única instância autora do mundo; uma nova inicialização invalida as gravações da anterior.
+
+Uma conexão configurada que falhar **não faz fallback para JSON**. O serviço fica indisponível/reinicia em vez de confirmar alterações apenas na memória. A conexão remota valida TLS/certificado; mensagens de erro não incluem usuário, senha, URL ou dados SQL. O banco é acessado exclusivamente pelo servidor, sem expor tabelas ou credenciais no navegador. [Conexão Node.js no Neon](https://neon.com/docs/guides/node).
+
 ### Publicar gratuitamente pela Render e GitHub
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/diogoposs/digla-rpg)
 
-O arquivo `render.yaml` configura **um único servidor Web Free**, sem banco de dados ou disco pago. O botão acima abre a configuração na sua conta Render: entre com GitHub, confira o plano **Free** e crie o Blueprint. Quando o serviço estiver **Live**, use a URL HTTPS mostrada pela Render. Nenhuma conta ou salvamento do computador é enviado: o serviço começa com um mundo novo.
+O arquivo `render.yaml` configura **um único servidor Web Free**, sem contratar disco ou banco pago. O Neon é criado separadamente e conectado por `DATABASE_URL`, solicitada como segredo. Em um Blueprint existente, configure essa variável diretamente em **Environment**; o marcador `sync: false` não preenche segredos em atualizações. O botão acima abre a configuração na sua conta Render. Quando o serviço estiver **Live**, use a URL HTTPS mostrada pela Render. Nenhuma conta ou salvamento do computador é enviado pelo GitHub.
 
-**Os salvamentos dessa hospedagem são temporários.** O plano gratuito pode suspender o serviço por inatividade e apagar os arquivos ao suspender, reiniciar ou publicar uma versão. Contas, personagens e progresso criados online podem desaparecer. O aviso também aparece no login dessa configuração. A página pode demorar para abrir enquanto o serviço desperta. Para preservar progresso futuramente, será necessário armazenamento persistente; isso não é contratado por este projeto. [Limitações oficiais do plano Free](https://render.com/docs/free).
+**Sem `DATABASE_URL`, os salvamentos dessa hospedagem são temporários.** O plano gratuito apaga arquivos locais em suspensões/reinícios/publicações; o aviso aparece no login enquanto o armazenamento for JSON temporário. Com PostgreSQL ativo, o aviso desaparece e os dados ficam no Neon. A Render ainda pode suspender o processo e demorar para despertar; adicionar um banco não muda os recursos ou as cotas do servidor. [Limitações oficiais do plano Free](https://render.com/docs/free).
 
 Depois de conectar o serviço ao repositório, atualizações em `main` disparam testes no GitHub Actions; a configuração da Render solicita publicação automática após os checks passarem. O endereço público é atribuído pela hospedagem, não é fixado no código. `RENDER_EXTERNAL_URL` configura automaticamente a origem HTTPS e cookies Secure; um domínio próprio pode ser configurado por `PUBLIC_ORIGIN`.
 
@@ -251,7 +266,7 @@ Moedas douradas e cinzas são itens empilháveis. O orc sempre deixa **5–15 do
 
 ## Contas e dados
 
-Contas e mundo são gravados juntos em **`data/game.json`**, por escrita temporária e substituição do arquivo. Não há SQLite, PostgreSQL, MongoDB ou outro banco de dados. `DIGLA_DATA_DIR` permite escolher outra pasta privada. Use apenas **um processo servidor por pasta de dados**.
+Com `DATABASE_URL`, os dados são gravados em **PostgreSQL**, nas tabelas privadas `digla_accounts` e `digla_world`. Sem ela, contas e mundo são gravados juntos em **`data/game.json`**, por escrita temporária e substituição do arquivo. `DIGLA_DATA_DIR` permite escolher outra pasta privada para o modo JSON/importação. Use apenas **uma instância ativa por banco/mundo**.
 
 Na primeira execução multiplayer, as contas de `data/accounts.json` são importadas com inventários, bancos e progresso; o arquivo original permanece como backup privado. É criado um mundo compartilhado inicial, substituindo os antigos mundos individuais. Não são somados os itens no chão nem os monstros de mundos antigos. Faça uma cópia de `data/` com o servidor parado antes de atualizar ou restaurar dados.
 
@@ -267,6 +282,6 @@ A vila usa calçamento de pedra e chão de pedregulhos. Os sprites têm contorno
 npm test
 ```
 
-Os testes usam diretórios temporários separados. Incluem regras do jogo, concorrência, reserva de loot, grupos, trocas, validação de movimento e migração. `tests/multiplayer-http.test.mjs` executa o servidor de produção e verifica dois jogadores, simulação sem polling do atacante, bloqueio de arquivos privados e persistência após reinício. `tests/server.test.mjs` mantém os contratos individuais antigos por um servidor exclusivo de compatibilidade em `tests/helpers/legacy-server.mjs`; ele não é usado ao iniciar o jogo. Para mudar a porta, defina `PORT` antes de iniciar.
+Os testes usam diretórios temporários separados. `tests/postgres.test.mjs` verifica migração, checkpoints, transações atômicas, rollback, concorrência e troca de instância. Localmente usa o motor PostgreSQL do PGlite; no GitHub Actions usa **PostgreSQL 16 real**, pelo driver `pg`, em schemas exclusivos de teste. Não utiliza o Neon de produção. `TEST_DATABASE_URL` é exclusiva dos testes. `tests/multiplayer-http.test.mjs` executa o servidor real em JSON e, no CI, também em PostgreSQL, incluindo reinício e duas sessões. `tests/server.test.mjs` mantém os contratos individuais antigos por um servidor exclusivo de compatibilidade em `tests/helpers/legacy-server.mjs`; ele não inicia o jogo público.
 
 Os testes visuais e de interação estão disponíveis com `npm.cmd run test:browser`, após instalar as dependências de desenvolvimento com `npm.cmd install` e o Chromium com `npx.cmd playwright install chromium`. Usam a porta 3001 e contas separadas em `test-results/`, sem alterar suas contas reais. O teste multiplayer abre dois contextos reais de navegador e verifica presença, movimento, chat, grupo e troca completa.

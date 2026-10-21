@@ -1,5 +1,5 @@
-# Servidor gratuito de testes. Não cria banco, disco pago nem outros serviços.
-# O filesystem do plano Free é temporário: contas/progresso podem ser apagados.
+# Servidor gratuito de testes. Neon é externo; DATABASE_URL é um segredo privado.
+# Sem DATABASE_URL, o JSON no filesystem Free continua temporário.
 services:
   - type: web
     name: digla-rpg
@@ -24,3 +24,5 @@ services:
         value: '0'
       - key: DIGLA_TEMPORARY_SAVES
         value: '1'
+      - key: DATABASE_URL
+        sync: false
